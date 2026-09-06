@@ -78,24 +78,24 @@ return (
         <div
           className="absolute inset-0 bg-cover bg-center opacity-60"
           style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1800&q=85')",
-          }}
-        />
+  backgroundImage:
+    "url('/products/hero-watch.jpg')"
+}}
+/>
 
-        <div className="absolute inset-0 bg-black/60" />
-
+<div className="absolute inset-0 bg-black/60" />
         <div className="relative mx-auto w-full max-w-7xl px-6 pt-20">
           <p className="mb-5 text-sm tracking-[0.5em] text-gray-300">
             ЧАНАРТАЙ БҮТЭЭГДЭХҮҮН
           </p>
 
           <h1 className="max-w-4xl text-6xl font-black leading-none tracking-tight md:text-8xl">
-            ТАНЫ
-            <br />
-            ХЭВ МАЯГТАД
-          </h1>
+ ТАНЫ
+<br />
+ХЭВ МАЯГТ
+<br />
 ЗОРИУЛАВ.
+</h1>
           <p className="mt-8 max-w-xl text-gray-300">
             Цаг, хувцас, гутал болон аксессуарууд.
 Өдөр тутмын орчин үеийн хэв маягт тохируулан сонгосон бүтээгдэхүүнүүд.
