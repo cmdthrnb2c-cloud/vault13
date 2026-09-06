@@ -133,46 +133,10 @@ return (
           <span className="hidden text-sm text-gray-500 md:block">
             01 — 04
           </span>
-        </div>
+        </div>        
+       </section>   
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((product) => (
-            <article
-              key={product.name}
-              className="group overflow-hidden border border-white/10 bg-zinc-950"
-            >
-              <div className="aspect-square overflow-hidden bg-zinc-900">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                />
-              </div>
-
-              <div className="p-5">
-                <p className="mb-2 text-[10px] tracking-[0.3em] text-gray-500">
-                  {product.category}
-                </p>
-
-                <h3 className="font-bold">{product.name}</h3>
-
-                <div className="mt-5 flex items-center justify-between">
-                  <span className="text-sm">{product.price}</span>
-
-                  <button
-                    onClick={() => setCart(cart + 1)}
-                    className="border border-white px-3 py-2 text-[10px] tracking-widest transition hover:bg-white hover:text-black"
-                  >
-                    ADD
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* BANNER */}
+    {/* BANNER */}
       <section className="border-y border-white/10 bg-zinc-950">
         <div className="mx-auto max-w-7xl px-6 py-24 text-center">
           <p className="text-xs tracking-[0.5em] text-gray-500">
@@ -236,7 +200,15 @@ return (
   alt={product.name}
   onClick={() => setSelectedProduct(product)}
   className="w-full h-full object-cover group-hover:scale-105 transition duration-500 cursor-pointer"
-/>
+/><button
+  onClick={(e) => {
+    e.stopPropagation();
+    setSelectedProduct(product);
+  }}
+  className="absolute inset-0 m-auto h-12 w-40 bg-white text-black font-bold opacity-0 group-hover:opacity-100 transition"
+>
+  ДЭЛГЭРЭНГҮЙ
+</button>
          
       </div>
 
@@ -251,18 +223,16 @@ return (
 
         <p className="text-gray-400 mt-2">
           {product.price}
-        </p>
-setCartItems([product]);
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setCart((prev) => prev + 1);
-          setCartItems((prev) => [...prev, product]);
-          }}
-          className="w-full border border-white mt-5 py-3 text-sm tracking-widest"
-        >
-          ADD TO CART
-        </button>
+      </p>  <button
+  onClick={(e) => {
+    e.stopPropagation();
+    setCart((prev) => prev + 1);
+    setCartItems((prev) => [...prev, product]);
+  }}
+  className="w-full border border-white mt-5 py-3"
+>
+  ADD TO CART
+</button>
       </div>
     </div>
   ))}
@@ -410,15 +380,11 @@ onClick={() => {
 <div className="border-t border-white/10 pt-4 mt-4">
   <div className="flex justify-between font-bold">
     <span>НИЙТ</span>
-    <span>
-      {cartItems
-        .reduce(
-          (total, item) =>
-            total + Number(item.price.replace(/[^0-9]/g, "")),
-          0
-        )
-        .toLocaleString()}
-      ₮
+ <span>
+  {cartItems.reduce((total, item) => {
+  const price = parseInt(String(item.price).replace(/\D/g, ""), 10);
+  return total + price;
+}, 0).toLocaleString()}₮
     </span>
   </div>
 </div>
@@ -503,8 +469,14 @@ onClick={() => {
   "Нэр: " + customerName + "\n" +
   "Утас: " + customerPhone + "\n" +
   "Хаяг: " + customerAddress + "\n" +
-  "Төлбөр: " + paymentMethod
+  "Төлбөрийн хэлбэр: " + paymentMethod + "\n" +
+  "Нийт дүн: " +
+  cartItems.reduce((total, item) => {
+    return total + Number(String(item.price).replace(/[^\d]/g, ""));
+  }, 0).toLocaleString() +
+  "₮"
 );
+
     setCheckoutOpen(false);
    setCart(0);
   }}
