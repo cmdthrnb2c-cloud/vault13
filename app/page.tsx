@@ -48,16 +48,16 @@ return (
 
           <div className="hidden gap-10 text-sm tracking-widest md:flex">
             <a href="#home" className="hover:text-gray-400">
-              HOME
+              НҮҮР
             </a>
             <a href="#shop" className="hover:text-gray-400">
-              SHOP
+             ДЭЛГҮҮР
             </a>
             <a href="#about" className="hover:text-gray-400">
-              ABOUT
+              БИДНИЙ ТУХАЙ
             </a>
             <a href="#contact" className="hover:text-gray-400">
-              CONTACT
+              ХОЛБОО БАРИХ
             </a>
           </div>
 
