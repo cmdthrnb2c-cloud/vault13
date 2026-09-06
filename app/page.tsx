@@ -2,28 +2,32 @@
 
 import { useState } from "react";
 
-const products = [
+const initialProducts = [
   {
     name: "ROLEX GMT-MASTER II PEPSI",
     category: "WATCHES",
     price: "250,000₮",
     image:
       "https://www.idwx.co/cdn/shop/products/PEPSIJub_1024x.jpg?v=1668766409",
+      stock: 5,
   },
   {
     name: "ROLEX SUBMARINER",
     category: "WATCHES",
     price: "250,000₮",
+    stock: 5,
     image: "/products/SUBMARINER.PNG",
   },
   {
     name: "ROLEX YACHT-MASTER ROSE GOLD",
     category: "WATCHES",
     price: "250,000₮",
+    stock: 5,
     image: "/products/YACHT-MASTER.PNG",
   },
 ];
 export default function Home() {
+ const [products, setProducts] = useState(initialProducts);
   const [cart, setCart] = useState(0);
   const [cartItems, setCartItems] = useState<any[]>(() => {
   if (typeof window === "undefined") return [];
@@ -222,13 +226,13 @@ return (
         </h3>
 
         <p className="text-gray-400 mt-2">
-          {product.price}
+          ҮЛДЭГДЭЛ: {product.stock}
       </p>  <button
-  onClick={(e) => {
-    e.stopPropagation();
-    setCart((prev) => prev + 1);
-    setCartItems((prev) => [...prev, product]);
-  }}
+ onClick={(e) => {
+  e.stopPropagation();
+  setCart((prev) => prev + 1);
+  setCartItems((prev) => [...prev, product]);
+}}
   className="w-full border border-white mt-5 py-3"
 >
   САГСАНД НЭМЭХ
@@ -478,8 +482,21 @@ onClick={() => {
 );
 
     setCheckoutOpen(false);
-   setCart(0);
-  }}
+   setProducts((prevProducts) =>
+  prevProducts.map((product) => {
+    const orderedCount = cartItems.filter(
+      (item) => item.name === product.name
+    ).length;
+
+    return {
+      ...product,
+      stock: Math.max(0, product.stock - orderedCount),
+    };
+  })
+);
+ setCart(0);
+setCartItems([]);
+}}
   className="w-full bg-white text-black mt-6 py-4 font-bold"
 >
         ЗАХИАЛГА БАТАЛГААЖУУЛАХ
