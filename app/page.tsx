@@ -87,25 +87,25 @@ return (
 
         <div className="relative mx-auto w-full max-w-7xl px-6 pt-20">
           <p className="mb-5 text-sm tracking-[0.5em] text-gray-300">
-            PREMIUM GOODS
+            ЧАНАРТАЙ БҮТЭЭГДЭХҮҮН
           </p>
 
           <h1 className="max-w-4xl text-6xl font-black leading-none tracking-tight md:text-8xl">
-            BUILT FOR
+            ТАНЫ
             <br />
-            YOUR STYLE.
+            ХЭВ МАЯГТАД
           </h1>
-
+ЗОРИУЛАВ.
           <p className="mt-8 max-w-xl text-gray-300">
-            Premium watches, clothing, footwear and accessories.
-            Carefully selected for modern everyday style.
+            Цаг, хувцас, гутал болон аксессуарууд.
+Өдөр тутмын орчин үеийн хэв маягт тохируулан сонгосон бүтээгдэхүүнүүд.
           </p>
 
           <a
             href="#shop"
             className="mt-10 inline-block bg-white px-8 py-4 text-sm font-bold tracking-widest text-black transition hover:bg-gray-300"
           >
-            SHOP NOW
+           ОДОО ҮЗЭХ
           </a>
         </div>
       </section>
@@ -113,10 +113,10 @@ return (
       {/* CATEGORIES */}
       <section className="border-y border-white/10 py-8">
         <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-10 px-6 text-xs tracking-[0.3em] text-gray-400">
-          <span>WATCHES</span>
-          <span>CLOTHING</span>
-          <span>FOOTWEAR</span>
-          <span>ACCESSORIES</span>
+          <span>ЦАГ</span>
+          <span>ХУВЦАС</span>
+          <span>ГУТАЛ</span>
+          <span>АКСЕССУАР</span>
         </div>
       </section>
 
@@ -127,7 +127,7 @@ return (
             <p className="mb-3 text-xs tracking-[0.4em] text-gray-500">
               SELECTED COLLECTION
             </p>
-            <h2 className="text-4xl font-bold">NEW ARRIVALS</h2>
+            <h2 className="text-4xl font-bold">ШИНЭ БҮТЭЭГДЭХҮҮН</h2>
           </div>
 
           <span className="hidden text-sm text-gray-500 md:block">
@@ -231,7 +231,7 @@ return (
   }}
   className="w-full border border-white mt-5 py-3"
 >
-  ADD TO CART
+  САГСАНД НЭМЭХ
 </button>
       </div>
     </div>
@@ -248,7 +248,7 @@ return (
             </div>
 
             <p className="mt-3 text-sm text-gray-500">
-              PREMIUM ONLINE STORE
+              ПРЕМИУМ ОНЛАЙН ДЭЛГҮҮР
             </p>
           </div>
 
@@ -348,7 +348,7 @@ onClick={() => {
       </button>
 
       <p className="text-xs tracking-widest text-gray-500 mt-4">
-        YOUR CART
+        ТАНЫ САГС
       </p>
 
       <h2 className="text-2xl font-bold mt-2">
