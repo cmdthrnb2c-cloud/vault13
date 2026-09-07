@@ -152,10 +152,33 @@ return (
       {/* CATEGORIES */}
       <section className="border-y border-white/10 py-8">
         <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-10 px-6 text-xs tracking-[0.3em] text-gray-400">
-         <button onClick={() => setSelectedCategory("WATCHES")}>ЦАГ</button>
-<button onClick={() => setSelectedCategory("CLOTHES")}>ХУВЦАС</button>
-<button onClick={() => setSelectedCategory("SHOES")}>ГУТАЛ</button>
-<button onClick={() => setSelectedCategory("ACCESSORIES")}>АКСЕССУАР</button>
+      <button
+  onClick={() => setSelectedCategory("WATCHES")}
+  className={selectedCategory === "WATCHES" ? "text-white border-b border-white pb-2" : "text-gray-400"}
+>
+  ЦАГ
+</button>
+
+<button
+  onClick={() => setSelectedCategory("CLOTHES")}
+  className={selectedCategory === "CLOTHES" ? "text-white border-b border-white pb-2" : "text-gray-400"}
+>
+  ХУВЦАС
+</button>
+
+<button
+  onClick={() => setSelectedCategory("SHOES")}
+  className={selectedCategory === "SHOES" ? "text-white border-b border-white pb-2" : "text-gray-400"}
+>
+  ГУТАЛ
+</button>
+
+<button
+  onClick={() => setSelectedCategory("ACCESSORIES")}
+  className={selectedCategory === "ACCESSORIES" ? "text-white border-b border-white pb-2" : "text-gray-400"}
+>
+  АКСЕССУАР
+</button>
         </div>
       </section>
 
