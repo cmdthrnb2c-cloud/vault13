@@ -285,9 +285,11 @@ return (
           {product.name}
         </h3>
 
-        <p className="text-gray-400 mt-2">
-         </p> ҮЛДЭГДЭЛ: {product.stock}
-      {product.stock > 0 ? (
+<p className="text-gray-400 mt-2">
+  ҮЛДЭГДЭЛ: {product.stock}
+</p>
+
+{product.stock > 0 ? (
   <button
     onClick={(e) => {
       e.stopPropagation();
@@ -301,9 +303,9 @@ return (
 ) : (
   <button
     disabled
-    className="w-full border border-gray-700 text-gray-500 mt-5 py-3 cursor-not-allowed"
+    className="w-full bg-red-600 text-white mt-5 py-3 font-bold cursor-not-allowed"
   >
-    ЗАРАГДСАН
+    SOLD OUT
   </button>
 )}
       </div>
