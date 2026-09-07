@@ -62,7 +62,8 @@ const initialProducts = [
 ];
 export default function Home() {
  const [products, setProducts] = useState(initialProducts);
-  const [cart, setCart] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState("БҮГД");
+ const [cart, setCart] = useState(0);
   const [cartItems, setCartItems] = useState<any[]>(() => {
   if (typeof window === "undefined") return [];
   const saved = localStorage.getItem("vault13-cart");
@@ -151,10 +152,10 @@ return (
       {/* CATEGORIES */}
       <section className="border-y border-white/10 py-8">
         <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-10 px-6 text-xs tracking-[0.3em] text-gray-400">
-          <span>ЦАГ</span>
-          <span>ХУВЦАС</span>
-          <span>ГУТАЛ</span>
-          <span>АКСЕССУАР</span>
+         <button onClick={() => setSelectedCategory("WATCHES")}>ЦАГ</button>
+<button onClick={() => setSelectedCategory("CLOTHES")}>ХУВЦАС</button>
+<button onClick={() => setSelectedCategory("SHOES")}>ГУТАЛ</button>
+<button onClick={() => setSelectedCategory("ACCESSORIES")}>АКСЕССУАР</button>
         </div>
       </section>
 
@@ -225,7 +226,9 @@ return (
 
       {/* FOOTER */}{/* PRODUCTS */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-  {products.map((product, index) => (
+  {products
+  .filter((product) => selectedCategory === "БҮГД" || product.category === selectedCategory)
+  .map((product, index) => (
     <div
       key={index}
       className="group cursor-pointer"
