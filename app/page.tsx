@@ -62,9 +62,9 @@ const initialProducts = [
 ];
 export default function Home() {
  const [products, setProducts] = useState(initialProducts);
-  const [selectedCategory, setSelectedCategory] = useState("БҮГД");
- const [cart, setCart] = useState(0);
-  const [cartItems, setCartItems] = useState<any[]>(() => {
+const [selectedCategory, setSelectedCategory] = useState("ALL");
+const [cart, setCart] = useState(0);
+const [cartItems, setCartItems] = useState<any[]>(() => {
   if (typeof window === "undefined") return [];
   const saved = localStorage.getItem("vault13-cart");
   return saved ? JSON.parse(saved) : [];
@@ -250,8 +250,8 @@ return (
       {/* FOOTER */}{/* PRODUCTS */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
   {products
-  .filter((product) => selectedCategory === "БҮГД" || product.category === selectedCategory)
-  .map((product, index) => (
+  .filter((product) => selectedCategory === "ALL" || product.category === selectedCategory)
+.map((product, index) => (
     <div
       key={index}
       className="group cursor-pointer"
@@ -286,17 +286,26 @@ return (
         </h3>
 
         <p className="text-gray-400 mt-2">
-          ҮЛДЭГДЭЛ: {product.stock}
-      </p>  <button
- onClick={(e) => {
-  e.stopPropagation();
-  setCart((prev) => prev + 1);
-  setCartItems((prev) => [...prev, product]);
-}}
-  className="w-full border border-white mt-5 py-3"
->
-  САГСАНД НЭМЭХ
-</button>
+         </p> ҮЛДЭГДЭЛ: {product.stock}
+      {product.stock > 0 ? (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      setCart((prev) => prev + 1);
+      setCartItems((prev) => [...prev, product]);
+    }}
+    className="w-full border border-white mt-5 py-3"
+  >
+    САГСАНД НЭМЭХ
+  </button>
+) : (
+  <button
+    disabled
+    className="w-full border border-gray-700 text-gray-500 mt-5 py-3 cursor-not-allowed"
+  >
+    ЗАРАГДСАН
+  </button>
+)}
       </div>
     </div>
   ))}
