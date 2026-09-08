@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
-
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+);
 const initialProducts = [
   {
     name: "ROLEX GMT-MASTER II PEPSI",
     category: "WATCHES",
     price: "250,000₮",
     image:
-      "https://www.idwx.co/cdn/shop/products/PEPSIJub_1024x.jpg?v=1668766409",
+       "/products/ROLEX-GMT-PEPSI.jpg",
       stock: 5,
   },
   {
@@ -61,7 +65,26 @@ const initialProducts = [
   },
 ];
 export default function Home() {
- const [products, setProducts] = useState(initialProducts);
+const [products, setProducts] = useState(initialProducts);
+ useEffect(() => {
+  const fetchProducts = async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("Products load error:", error);
+      return;
+    }
+
+    if (data) {
+    setProducts(data);
+    }
+  };
+
+  fetchProducts();
+}, []);
 const [selectedCategory, setSelectedCategory] = useState("ALL");
 const [cart, setCart] = useState(0);
 const [cartItems, setCartItems] = useState<any[]>(() => {
