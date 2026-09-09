@@ -61,53 +61,52 @@ useEffect(() => {
       .order("id", { ascending: true });
 
     if (error) {
+      alert("Supabase алдаа: " + error.message);
       console.error("Products error:", error);
       return;
     }
 
-    if (data) {
-      setProducts(data);
-    }
+    setProducts(data || []);
   };
 
   fetchProducts();
 }, []);
-  if (!loggedIn) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
-        <div className="w-full max-w-sm">
-          <h1 className="text-3xl font-bold tracking-[0.3em] text-center">
-            VAULT 13
-          </h1>
+if (!loggedIn) {
+  return (
+    <main className="min-h-screen bg-black text-white p-8">
+      <div className="max-w-md mx-auto">
+        <h1 className="text-3xl font-bold mb-6">
+          VAULT 13 ADMIN
+        </h1>
 
-          <p className="text-gray-500 text-center mt-3 tracking-widest">
-            ADMIN PANEL
-          </p>
+        <p className="text-gray-400 mb-4">
+          ADMIN PANEL
+        </p>
 
-          <input
-            type="password"
-            placeholder="ADMIN PASSWORD"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-black border border-white/30 px-4 py-4 mt-10 outline-none"
-          />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Нууц үг"
+          className="w-full border border-white bg-black p-4 mb-4"
+        />
 
-       <button
-  onClick={() => {
-    if (password === "04f0a1034451A?") {
-      setLoggedIn(true);
-    } else {
-      alert("Нууц үг буруу");
-    }
-  }}
-  className="w-full border border-white py-3 mt-4"
->
-  НЭВТРЭХ
-</button>
-        </div>
-      </main>
-    );
-  }
+        <button
+          onClick={() => {
+            if (password === "YOUR_ADMIN_PASSWORD") {
+              setLoggedIn(true);
+            } else {
+              alert("Нууц үг буруу");
+            }
+          }}
+          className="w-full border border-white py-4"
+        >
+          НЭВТРЭХ
+        </button>
+      </div>
+    </main>
+  );
+}
 
   return (
     <main className="min-h-screen bg-black text-white px-6 py-10">
