@@ -93,7 +93,7 @@ if (!loggedIn) {
 
         <button
           onClick={() => {
-            if (password === "YOUR_ADMIN_PASSWORD") {
+            if (password === "04f0a1034451A?") {
               setLoggedIn(true);
             } else {
               alert("Нууц үг буруу");
