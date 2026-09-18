@@ -16,7 +16,7 @@ export default function AdminPage() {
     const [productName, setProductName] = useState("");
   const [productCategory, setProductCategory] = useState("WATCHES");
   const [productPrice, setProductPrice] = useState("");
-  const [productImage, setProductImage] = useState("");
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
   const [productStock, setProductStock] = useState("0");
 const [products, setProducts] = useState<any[]>([]);
   const addProduct = async () => {
@@ -28,22 +28,40 @@ const [products, setProducts] = useState<any[]>([]);
 
     const price = prompt("Үнэ:");
     if (!price) return;
+const stock = prompt("Үлдэгдэл:", "5");
+if (!stock) return;
+  if (!productImageFile) {
+  alert("Эхлээд зураг сонгоно уу.");
+  return;
+}
 
-    const image = prompt("Зургийн URL:");
-    if (!image) return;
+const fileExt = productImageFile.name.split(".").pop();
+const fileName = `${Date.now()}.${fileExt}`;
 
-    const stock = prompt("Үлдэгдэл:", "5");
-    if (!stock) return;
+const { error: uploadError } = await supabase.storage
+  .from("product-images")
+  .upload(fileName, productImageFile);
 
-    const { error } = await supabase.from("products").insert([
-      {
-        name,
-        category,
-        price: Number(price),
-        image,
-        stock: Number(stock),
-      },
-    ]);
+if (uploadError) {
+  alert("Зураг upload хийхэд алдаа гарлаа: " + uploadError.message);
+  return;
+}
+
+const { data: imageData } = supabase.storage
+  .from("product-images")
+  .getPublicUrl(fileName);
+
+const image = imageData.publicUrl;
+
+const { error } = await supabase.from("products").insert([
+  {
+    name,
+    category,
+    price: Number(price),
+    image,
+    stock: Number(stock),
+  },
+]);
 
     if (error) {
       alert("Бараа нэмэхэд алдаа гарлаа: " + error.message);
@@ -141,7 +159,14 @@ if (!loggedIn) {
             className="border border-white py-4">
               БАРАА НЭМЭХ
             </button>
-
+<input
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    setProductImageFile(e.target.files?.[0] || null);
+  }}
+  className="border border-white py-3 px-4"
+/>
     <button
   onClick={async () => {
   if (products.length === 0) {
