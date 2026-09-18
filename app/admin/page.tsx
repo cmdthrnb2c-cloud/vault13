@@ -43,7 +43,8 @@ const { error: uploadError } = await supabase.storage
   .upload(fileName, productImageFile);
 
 if (uploadError) {
-  alert("Зураг upload хийхэд алдаа гарлаа: " + uploadError.message);
+  console.error("UPLOAD ERROR:", uploadError);
+  alert("Зураг upload хийхэд алдаа гарлаа:\n" + JSON.stringify(uploadError, null, 2));
   return;
 }
 
