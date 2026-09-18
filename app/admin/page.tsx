@@ -72,6 +72,48 @@ const { error } = await supabase.from("products").insert([
     alert("Бараа амжилттай нэмэгдлээ.");
     window.location.reload();
   };
+  const deleteProduct = async () => {
+  if (products.length === 0) {
+    alert("Устгах бараа байхгүй байна.");
+    return;
+  }
+
+  const list = products
+    .map((item, index) => `${index + 1}. ${item.name}`)
+    .join("\n");
+
+  const choice = prompt(
+    "Устгах бараагаа сонгоно уу:\n\n" +
+      list +
+      "\n\nДугаар оруулна уу:"
+  );
+
+  if (choice === null) return;
+
+  const index = Number(choice) - 1;
+
+  if (index < 0 || index >= products.length) {
+    alert("Буруу дугаар.");
+    return;
+  }
+
+  const product = products[index];
+
+  if (!confirm(`"${product.name}" барааг устгах уу?`)) return;
+
+  const { error } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", Number(product.id));
+
+  if (error) {
+    alert("Бараа устгахад алдаа гарлаа: " + error.message);
+    return;
+  }
+
+  alert("Бараа амжилттай устгагдлаа.");
+  window.location.reload();
+};
 useEffect(() => {
   const fetchProducts = async () => {
     const { data, error } = await supabase
@@ -155,11 +197,21 @@ if (!loggedIn) {
           <h2 className="text-xl font-bold">БҮТЭЭГДЭХҮҮН УДИРДАХ</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <button 
-             onClick={addProduct}
-            className="border border-white py-4">
-              БАРАА НЭМЭХ
-            </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+  <button
+    onClick={addProduct}
+    className="border border-white py-4"
+  >
+    БАРАА НЭМЭХ
+  </button>
+
+  <button
+    onClick={deleteProduct}
+    className="border border-white py-4"
+  >
+    БАРАА УСТГАХ
+  </button>
+</div>
 <input
   type="file"
   accept="image/*"
