@@ -18,6 +18,7 @@ export default function AdminPage() {
   const [productPrice, setProductPrice] = useState("");
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
   const [productStock, setProductStock] = useState("0");
+  const [availability, setAvailability] = useState("БЭЛЭН");
 const [products, setProducts] = useState<any[]>([]);
   const addProduct = async () => {
     const name = prompt("Барааны нэр:");
@@ -28,8 +29,15 @@ const [products, setProducts] = useState<any[]>([]);
 
     const price = prompt("Үнэ:");
     if (!price) return;
+
 const stock = prompt("Үлдэгдэл:", "5");
 if (!stock) return;
+
+const availability = prompt(
+  "Барааны төлөв: БЭЛЭН эсвэл ЗАХИАЛГААР",
+  "БЭЛЭН"
+);
+if (!availability) return;
   if (!productImageFile) {
   alert("Эхлээд зураг сонгоно уу.");
   return;
@@ -61,6 +69,7 @@ const { error } = await supabase.from("products").insert([
     price: Number(price),
     image,
     stock: Number(stock),
+    availability,
   },
 ]);
 
