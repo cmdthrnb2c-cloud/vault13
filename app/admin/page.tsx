@@ -137,6 +137,7 @@ useEffect(() => {
     }
 
     setProducts(data || []);
+    alert("Supabase-с ирсэн бараа: " + (data?.length ?? 0));
   };
 
   fetchProducts();
@@ -188,7 +189,7 @@ if (!loggedIn) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10">
           <div className="border border-white/20 p-6">
             <p className="text-gray-500">БҮТЭЭГДЭХҮҮН</p>
-            <p className="text-3xl font-bold mt-3">6</p>
+            <p className="text-3xl font-bold mt-3">{products.length}</p>
           </div>
 
           <div className="border border-white/20 p-6">
