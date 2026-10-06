@@ -380,10 +380,18 @@ if (!loggedIn) {
         key={order.id}
         className="border border-white/20 p-5"
       >
-        <p><strong>Нэр:</strong> {order.customer_name}</p>
-        <p><strong>Утас:</strong> {order.customer_phone}</p>
-        <p><strong>Хаяг:</strong> {order.customer_address}</p>
-        <p><strong>Төлбөр:</strong> {order.payment_method}</p>
+        <p>
+          <strong>Нэр:</strong> {order.customer_name}
+        </p>
+        <p>
+          <strong>Утас:</strong> {order.customer_phone}
+        </p>
+        <p>
+          <strong>Хаяг:</strong> {order.customer_address}
+        </p>
+        <p>
+          <strong>Төлбөр:</strong> {order.payment_method}
+        </p>
         <p>
           <strong>Нийт:</strong>{" "}
           {Number(order.total).toLocaleString()}₮
@@ -395,59 +403,8 @@ if (!loggedIn) {
     ))}
   </div>
 )}
-  ) : (
-    <div className="mt-4 space-y-4">
-      {orders.map((order: any) => (
-        <div
-          key={order.id}
-          className="border border-white/20 p-5"
-        >
-          <p className="text-lg font-bold">
-            Захиалга #{order.id}
-          </p>
-
-          <p className="mt-2">
-            Нэр: {order.customer_name}
-          </p>
-
-          <p>
-            Утас: {order.customer_phone}
-          </p>
-
-          <p>
-            Хаяг: {order.customer_address}
-          </p>
-
-          <p>
-            Төлбөр: {order.payment_method}
-          </p>
-
-          <p>
-            Нийт дүн: {Number(order.total).toLocaleString()}₮
-          </p>
-
-          <p className="text-gray-400 text-sm mt-2">
-            Огноо: {order.created_at
-              ? new Date(order.created_at).toLocaleString()
-              : "-"}
-          </p>
-
-          <div className="mt-3">
-            <p className="font-bold">Бараа:</p>
-
-            {Array.isArray(order.items) &&
-              order.items.map((item: any, index: number) => (
-                <p key={index} className="text-gray-300">
-                  • {item.name}
-                </p>
-              ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
+  </div>
 </div>
-      </div>
     </main>
   );
 }
