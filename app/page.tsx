@@ -100,9 +100,9 @@ const [customerPhone, setCustomerPhone] = useState("");
 const [customerAddress, setCustomerAddress] = useState("");
 const [paymentMethod, setPaymentMethod] = useState("");
 return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-[#0a0a0a] text-white">
       {/* NAVBAR */}
-      <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-black/90 backdrop-blur">
+      <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md backdrop-blur">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
           <div className="text-2xl font-black tracking-[0.3em]">
             VAULT 13
@@ -280,7 +280,7 @@ return (
       className="group cursor-pointer"
       onClick={() => setSelectedProduct(product)}
     >
-      <div className="aspect-square bg-zinc-900 overflow-hidden">
+    <div className="aspect-square bg-zinc-900 overflow-hidden rounded-2xl border border-white/30">
         <img
         
   src={product.image}
@@ -561,21 +561,38 @@ onClick={() => {
       </button>
 
       <button
-   onClick={() => {
-  alert(
-  "Захиалга амжилттай бүртгэгдлээ.\n\n" +
-  "Нэр: " + customerName + "\n" +
-  "Утас: " + customerPhone + "\n" +
-  "Хаяг: " + customerAddress + "\n" +
-  "Төлбөрийн хэлбэр: " + paymentMethod + "\n" +
-  "Нийт дүн: " +
-  cartItems.reduce((total, item) => {
+   onClick={async () => {
+  const total = cartItems.reduce((total, item) => {
     return total + Number(String(item.price).replace(/[^\d]/g, ""));
-  }, 0).toLocaleString() +
-  "₮"
-);
+  }, 0);
 
-    setCheckoutOpen(false);
+  const { error } = await supabase.from("orders").insert([
+    {
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      customer_address: customerAddress,
+      payment_method: paymentMethod,
+      items: cartItems,
+      total: total,
+    },
+  ]);
+
+  if (error) {
+    alert("Захиалга хадгалахад алдаа гарлаа: " + error.message);
+    return;
+  }
+
+  alert(
+    "Захиалга амжилттай бүртгэгдлээ.\n\n" +
+    "Нэр: " + customerName + "\n" +
+    "Утас: " + customerPhone + "\n" +
+    "Хаяг: " + customerAddress + "\n" +
+    "Төлбөрийн хэлбэр: " + paymentMethod + "\n" +
+    "Нийт дүн: " + total.toLocaleString() + "₮"
+  );
+
+  setCheckoutOpen(false);
+    
    setProducts((prevProducts) =>
   prevProducts.map((product) => {
     const orderedCount = cartItems.filter(

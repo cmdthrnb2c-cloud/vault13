@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [productStock, setProductStock] = useState("0");
   const [availability, setAvailability] = useState("БЭЛЭН");
 const [products, setProducts] = useState<any[]>([]);
+const [orders, setOrders] = useState<any[]>([]);
   const addProduct = async () => {
     const name = prompt("Барааны нэр:");
     if (!name) return;
@@ -136,11 +137,27 @@ useEffect(() => {
       return;
     }
 
-    setProducts(data || []);
-    alert("Supabase-с ирсэн бараа: " + (data?.length ?? 0));
+   
+    
   };
 
-  fetchProducts();
+fetchProducts();
+
+const fetchOrders = async () => {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Orders error:", error);
+    return;
+  }
+
+  setOrders(data || []);
+};
+
+fetchOrders();
 }, []);
 if (!loggedIn) {
   return (
@@ -194,7 +211,7 @@ if (!loggedIn) {
 
           <div className="border border-white/20 p-6">
             <p className="text-gray-500">ЗАХИАЛГА</p>
-            <p className="text-3xl font-bold mt-3">0</p>
+            <p className="text-3xl font-bold mt-3">{orders.length}</p>
           </div>
 
           <div className="border border-white/20 p-6">
@@ -349,13 +366,87 @@ if (!loggedIn) {
           </div>
         </div>
 
-        <div className="mt-6 border border-white/20 p-6">
-          <h2 className="text-xl font-bold">ЗАХИАЛГУУД</h2>
+   <div className="mt-6 border border-white/20 p-6">
+  <h2 className="text-xl font-bold">ЗАХИАЛГУУД</h2>
 
-          <p className="text-gray-500 mt-4">
-            Одоогоор захиалга байхгүй.
+{orders.length === 0 ? (
+  <p className="text-gray-500 mt-4">
+    Одоогоор захиалга байхгүй.
+  </p>
+) : (
+  <div className="mt-6 space-y-4">
+    {orders.map((order) => (
+      <div
+        key={order.id}
+        className="border border-white/20 p-5"
+      >
+        <p><strong>Нэр:</strong> {order.customer_name}</p>
+        <p><strong>Утас:</strong> {order.customer_phone}</p>
+        <p><strong>Хаяг:</strong> {order.customer_address}</p>
+        <p><strong>Төлбөр:</strong> {order.payment_method}</p>
+        <p>
+          <strong>Нийт:</strong>{" "}
+          {Number(order.total).toLocaleString()}₮
+        </p>
+        <p className="text-gray-500 text-sm mt-2">
+          {new Date(order.created_at).toLocaleString("mn-MN")}
+        </p>
+      </div>
+    ))}
+  </div>
+)}
+  ) : (
+    <div className="mt-4 space-y-4">
+      {orders.map((order: any) => (
+        <div
+          key={order.id}
+          className="border border-white/20 p-5"
+        >
+          <p className="text-lg font-bold">
+            Захиалга #{order.id}
           </p>
+
+          <p className="mt-2">
+            Нэр: {order.customer_name}
+          </p>
+
+          <p>
+            Утас: {order.customer_phone}
+          </p>
+
+          <p>
+            Хаяг: {order.customer_address}
+          </p>
+
+          <p>
+            Төлбөр: {order.payment_method}
+          </p>
+
+          <p>
+            Нийт дүн: {Number(order.total).toLocaleString()}₮
+          </p>
+
+          <p className="text-gray-400 text-sm mt-2">
+            Огноо: {order.created_at
+              ? new Date(order.created_at).toLocaleString()
+              : "-"}
+          </p>
+
+          <div className="mt-3">
+            <p className="font-bold">Бараа:</p>
+
+            {Array.isArray(order.items) &&
+              order.items.map((item: any, index: number) => (
+                <p key={index} className="text-gray-300">
+                  • {item.name}
+                </p>
+              ))}
+          </div>
         </div>
+      ))}
+    </div>
+  )
+</div>
       </div>
     </main>
   );
