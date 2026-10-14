@@ -12,6 +12,10 @@ const supabase = createClient(
 
 export default function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
+useEffect(() => {
+  setLoggedIn(sessionStorage.getItem("vault13_admin") === "true");
+}, []);
+
   const [password, setPassword] = useState("");
     const [productName, setProductName] = useState("");
   const [productCategory, setProductCategory] = useState("WATCHES");
@@ -149,7 +153,7 @@ const { error } = await supabase.from("products").insert([
   window.location.reload();
 };
 useEffect(() => {
- useEffect(() => {
+ 
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from("products")
@@ -167,7 +171,7 @@ useEffect(() => {
 
   fetchProducts();
 }, []);
-
+useEffect(() => {
 const fetchOrders = async () => {
   const { data, error } = await supabase
     .from("orders")
@@ -206,6 +210,7 @@ if (!loggedIn) {
 
         <button
           onClick={() => {
+            sessionStorage.setItem("vault13_admin", "true");
             if (password === "04f0a1034451A?") {
               setLoggedIn(true);
             } else {
