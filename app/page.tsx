@@ -182,19 +182,22 @@ return (
   ЦАГ
 </button>
 
-<button
-  onClick={() => setSelectedCategory("CLOTHES")}
+<button 
+  onClick={() => setSelectedCategory("CLOTHES")} 
   className={selectedCategory === "CLOTHES" ? "text-white border-b border-white pb-2" : "text-gray-400"}
 >
   ХУВЦАС
 </button>
-
 <button
   onClick={() => setSelectedCategory("SHOES")}
-  className={selectedCategory === "SHOES" ? "text-white border-b border-white pb-2" : "text-gray-400"}
+  className={selectedCategory === "SHOES" ? "text-white border-b border-white pb-2" : "text-gray-400 pb-2"}
 >
   ГУТАЛ
 </button>
+
+
+
+
 
 <button
   onClick={() => setSelectedCategory("ACCESSORIES")}

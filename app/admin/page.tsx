@@ -25,7 +25,28 @@ const [orders, setOrders] = useState<any[]>([]);
     const name = prompt("Барааны нэр:");
     if (!name) return;
 
-    const category = prompt("Ангилал:", "WATCHES");
+   
+const categoryChoice = prompt(
+  "Ангилал сонгоно уу:\n1. ЦАГ\n2. ХУВЦАС\n3. ГУТАЛ\n4. АКСЕССУАР",
+  "1"
+);
+
+if (!categoryChoice) return;
+
+const categoryMap: Record<string, string> = {
+  "1": "WATCHES",
+  "2": "CLOTHING",
+  "3": "SHOES",
+  "4": "ACCESSORIES",
+};
+
+const category = categoryMap[categoryChoice.trim()];
+
+if (!category) {
+  alert("1, 2, 3 эсвэл 4 гэж сонгоно уу.");
+  return;
+}
+
     if (!category) return;
 
     const price = prompt("Үнэ:");
