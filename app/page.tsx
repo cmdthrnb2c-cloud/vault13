@@ -416,7 +416,11 @@ onClick={() => {
       >
         ХУДАЛДАН АВАХ
       </button>
-
+{selectedProduct.description && (
+  <div className="mt-4 text-gray-400 leading-7">
+    {selectedProduct.description}
+  </div>
+)}
       <div className="border border-white/20 mt-6 p-5">
         <p className="text-sm tracking-widest text-gray-400">
           ТӨЛБӨР

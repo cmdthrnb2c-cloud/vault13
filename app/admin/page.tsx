@@ -21,17 +21,19 @@ export default function AdminPage() {
   const [availability, setAvailability] = useState("БЭЛЭН");
 const [products, setProducts] = useState<any[]>([]);
 const [orders, setOrders] = useState<any[]>([]);
-  const addProduct = async () => {
-    const name = prompt("Барааны нэр:");
-    if (!name) return;
+ const addProduct = async () => {
+  const name = prompt("Барааны нэр:");
+  if (!name) return;
 
-   
-const categoryChoice = prompt(
-  "Ангилал сонгоно уу:\n1. ЦАГ\n2. ХУВЦАС\n3. ГУТАЛ\n4. АКСЕССУАР",
-  "1"
-);
+  const description = prompt("Барааны тайлбар:") || "";
 
-if (!categoryChoice) return;
+  const categoryChoice = prompt(
+    "Ангилал сонгоно уу:\n1. ЦАГ\n2. ХУВЦАС\n3. ГУТАЛ\n4. АКСЕССУАР",
+    "1"
+  );
+
+  if (!categoryChoice) return;
+
 
 const categoryMap: Record<string, string> = {
   "1": "WATCHES",
@@ -92,6 +94,7 @@ const { error } = await supabase.from("products").insert([
     image,
     stock: Number(stock),
     availability,
+    description,
   },
 ]);
 
@@ -146,6 +149,7 @@ const { error } = await supabase.from("products").insert([
   window.location.reload();
 };
 useEffect(() => {
+ useEffect(() => {
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from("products")
@@ -158,11 +162,11 @@ useEffect(() => {
       return;
     }
 
-   
-    
+    setProducts(data ?? []);
   };
 
-fetchProducts();
+  fetchProducts();
+}, []);
 
 const fetchOrders = async () => {
   const { data, error } = await supabase
