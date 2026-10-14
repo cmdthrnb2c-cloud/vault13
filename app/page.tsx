@@ -397,11 +397,9 @@ return (
         {selectedProduct.price}
       </p>
 
-      <div className="mt-6 text-sm text-gray-400 leading-7">
-        <p>• Чанартай хийцтэй</p>
-        <p>• Усны хамгаалалттай</p>
-        <p>• Өдөр тутам хэрэглэхэд тохиромжтой</p>
-      </div>
+   <div className="mt-6 text-sm text-gray-400 leading-7">
+  
+</div>
 
       <button
 onClick={() => {
