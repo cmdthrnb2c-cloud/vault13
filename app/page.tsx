@@ -398,7 +398,9 @@ return (
       </p>
 
    <div className="mt-6 text-sm text-gray-400 leading-7">
-  
+  <p>Чанартай хийцтэй</p>
+  <p>Усны хамгаалалттай</p>
+  <p>Өдөр тутам хэрэглэхэд тохиромжтой</p>
 </div>
 
       <button
@@ -424,9 +426,43 @@ onClick={() => {
           ТӨЛБӨР
         </p>
 
-        <button className="w-full border border-white mt-4 py-3">
-          QPAY
-        </button>
+<button
+  onClick={async () => {
+    try {
+      const total = cartItems.reduce((sum, item) => {
+        const price = parseInt(String(item.price).replace(/\D/g, ""), 10);
+        return sum + (Number.isFinite(price) ? price : 0);
+      }, 0);
+
+      const response = await fetch("/api/qpay/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: total,
+          orderId: `ORDER-${Date.now()}`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "QPay нэхэмжлэл үүссэнгүй");
+        return;
+      }
+
+      if (data.qr_image) {
+        window.open(data.qr_image, "_blank");
+      } else if (data.qr_text) {
+        alert("QPay QR мэдээлэл үүслээ. QR кодыг харуулах хэсгийг дараа нь холбоно.");
+      }
+    } catch {
+      alert("Сервертэй холбогдож чадсангүй");
+    }
+  }}
+  className="w-full border border-white/20 mt-4 py-3"
+>
+  QPAY
+</button>
 
         <button className="w-full border border-white/30 mt-3 py-3">
           ХААН БАНК
