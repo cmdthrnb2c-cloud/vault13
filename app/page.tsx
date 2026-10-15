@@ -566,30 +566,32 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
         ЗАХИАЛГА
       </h2>
 
-    <input
-  type="text"
-  placeholder="Нэр"
-  value={customerName}
-  onChange={(e) => setCustomerName(e.target.value)}
-  className="w-full bg-transparent border border-white/20 p-4 mt-6"
-/>
-<input
-  type="tel"
-  placeholder="Утасны дугаар"
-  value={customerPhone}
-  onChange={(e) => setCustomerPhone(e.target.value)}
-  className="w-full bg-transparent border border-white/20 p-4 mt-3"
-/>
-      <input
-  type="text"
-  placeholder="Хүргэлтийн хаяг"
-  value={customerAddress}
-  onChange={(e) => setCustomerAddress(e.target.value)}
-  className="w-full bg-transparent border border-white/20 p-4 mt-3"
-/>
-        <p className="text-sm text-gray-400 mt-6">
-  Төлбөрийн хэлбэр
-</p>
+  
+<div className="max-h-[35vh] overflow-y-auto overscroll-contain touch-pan-y space-y-3">
+  <input
+    type="text"
+    placeholder="Нэр"
+    value={customerName}
+    onChange={(e) => setCustomerName(e.target.value)}
+    className="w-full bg-transparent border border-white/20 p-4 mt-6"
+  />
+  <input
+    type="tel"
+    placeholder="Утасны дугаар"
+    value={customerPhone}
+    onChange={(e) => setCustomerPhone(e.target.value)}
+    className="w-full bg-transparent border border-white/20 p-4 mt-3"
+  />
+  <input
+    type="text"
+    placeholder="Хүргэлтийн хаяг"
+    value={customerAddress}
+    onChange={(e) => setCustomerAddress(e.target.value)}
+    className="w-full bg-transparent border border-white/20 p-4 mt-3"
+  />
+</div>
+
+
 
       <p className="text-sm text-gray-400 mt-6">
         Төлбөрийн хэлбэр
@@ -636,7 +638,7 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
 </button>
 
 {qpayUrls.length > 0 && (
-  <div className="mt-4 space-y-3">
+  <div className="mt-4 space-y-3 max-h-[55vh] overflow-y-auto overscroll-contain touch-pan-y">
     <p className="text-center text-white">
       Төлбөр төлөх банкаа сонгоно уу
     </p>
