@@ -419,13 +419,30 @@ if (!loggedIn) {
         <p>
           <strong>Хаяг:</strong> {order.customer_address}
         </p>
-        <p>
-          <strong>Төлбөр:</strong> {order.payment_method}
-        </p>
-        <p>
-          <strong>Нийт:</strong>{" "}
-          {Number(order.total).toLocaleString()}₮
-        </p>
+       
+<p>
+  <strong>Төлбөр:</strong> {order.payment_method}
+</p>
+
+<div className="mt-3">
+  <strong>Захиалсан бараа:</strong>
+  <ul className="mt-2 space-y-2">
+    {Array.isArray(order.items) &&
+      order.items.map((item: any, index: number) => (
+        <li key={item.id ?? index} className="text-gray-300">
+          {item.name ?? "Нэргүй бараа"} —{" "}
+          {Number(item.price ?? 0).toLocaleString()}₮
+        </li>
+      ))}
+  </ul>
+</div>
+
+<p>
+  <strong>Нийт:</strong>{" "}
+  {Number(order.total).toLocaleString()}₮
+</p>
+
+        
         <p className="text-gray-500 text-sm mt-2">
           {new Date(order.created_at).toLocaleString("mn-MN")}
         </p>
