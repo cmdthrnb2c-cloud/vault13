@@ -433,7 +433,7 @@ onClick={() => {
         const price = parseInt(String(item.price).replace(/\D/g, ""), 10);
         return sum + (Number.isFinite(price) ? price : 0);
       }, 0);
-
+alert("QPAY товч ажиллаж байна");
       const response = await fetch("/api/qpay/invoice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -449,12 +449,13 @@ onClick={() => {
         alert(data.error || "QPay нэхэмжлэл үүссэнгүй");
         return;
       }
-
-      if (data.qr_image) {
-        window.open(data.qr_image, "_blank");
-      } else if (data.qr_text) {
-        alert("QPay QR мэдээлэл үүслээ. QR кодыг харуулах хэсгийг дараа нь холбоно.");
-      }
+if (data.qr_image || data.qr_text) {
+  alert(
+    "QPay QR үүссэн.\n\n" +
+    "QR мэдээлэл ирсэн эсэх: " +
+    (data.qr_image ? "Зураг байна" : "Зураг алга")
+  );
+}
     } catch {
       alert("Сервертэй холбогдож чадсангүй");
     }
