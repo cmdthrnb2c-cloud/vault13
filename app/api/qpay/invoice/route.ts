@@ -61,7 +61,7 @@ export async function POST(request: Request) {
           invoice_receiver_code: "terminal",
           invoice_description: `Vault13 захиалга ${orderId}`,
           amount: Number(amount),
-          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/qpay/callback`,
+         callback_url: "https://vault13-six.vercel.app/api/qpay/callback",
         }),
       }
     );
