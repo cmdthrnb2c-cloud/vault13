@@ -92,13 +92,14 @@ const [cartItems, setCartItems] = useState<any[]>(() => {
   const saved = localStorage.getItem("vault13-cart");
   return saved ? JSON.parse(saved) : [];
 });
+ const [paymentMethod, setPaymentMethod] = useState("");
 const [selectedProduct, setSelectedProduct] = useState<any>(null);
 const [cartOpen, setCartOpen] = useState(false);
 const [checkoutOpen, setCheckoutOpen] = useState(false);
 const [customerName, setCustomerName] = useState("");
 const [customerPhone, setCustomerPhone] = useState("");
 const [customerAddress, setCustomerAddress] = useState("");
-const [paymentMethod, setPaymentMethod] = useState("");
+const [qpayQrImage, setQpayQrImage] = useState<string | null>(null);
 return (
     <main className="min-h-screen bg-[#0a0a0a] text-white">
       {/* NAVBAR */}
@@ -448,8 +449,8 @@ alert("QPAY товч ажиллаж байна");
       if (!response.ok) {
         alert(data.error || "QPay нэхэмжлэл үүссэнгүй");
         return;
-      }
-if (data.qr_image || data.qr_text) {
+      
+window.open("data:image/png;base64," + data.qr_image, "_blank");
   alert(
     "QPay QR үүссэн.\n\n" +
     "QR мэдээлэл ирсэн эсэх: " +
@@ -592,9 +593,57 @@ if (data.qr_image || data.qr_text) {
         Төлбөрийн хэлбэр
       </p>
 
-      <button onClick={() => setPaymentMethod("QPAY")}className="w-full border border-white mt-3 py-4">
-        QPAY
-      </button>
+   
+<button
+  onClick={async () => {
+    const total = cartItems.reduce((sum, item) => {
+      return sum + Number(String(item.price).replace(/[^\d]/g, ""));
+    }, 0);
+
+    if (total <= 0) {
+      alert("Сагсны төлбөрийн дүн 0 байна.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/qpay/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: total,
+          orderId: `ORDER-${Date.now()}`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "QPay нэхэмжлэл үүссэнгүй");
+        return;
+      }
+
+      setPaymentMethod("QPAY");
+      setQpayQrImage(data.qr_image);
+    } catch {
+      alert("QPay сервертэй холбогдож чадсангүй.");
+    }
+  }}
+  className="w-full border border-white/20 mt-3 py-4"
+>
+  QPAY
+</button>
+
+{qpayQrImage && (
+  <div className="mt-4 bg-white p-4 text-center">
+    <p className="text-black mb-3">QPay QR кодыг уншуулна уу</p>
+    <img
+      src={`data:image/png;base64,${qpayQrImage}`}
+      alt="QPay QR"
+      className="mx-auto w-64 max-w-full"
+    />
+  </div>
+)}
+
 
       <button 
         onClick={() => setPaymentMethod("ХААН БАНК")}
