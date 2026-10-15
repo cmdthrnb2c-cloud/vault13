@@ -100,8 +100,10 @@ const [customerName, setCustomerName] = useState("");
 const [customerPhone, setCustomerPhone] = useState("");
 const [customerAddress, setCustomerAddress] = useState("");
 const [qpayQrImage, setQpayQrImage] = useState<string | null>(null);
+const [qpayUrls, setQpayUrls] = useState<any[]>([]);
 return (
-    <main className="min-h-screen bg-[#0a0a0a] text-white">
+  
+ <main className="min-h-screen bg-[#0a0a0a] text-white">
       {/* NAVBAR */}
       <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md backdrop-blur">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
@@ -623,7 +625,7 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
       }
 
       setPaymentMethod("QPAY");
-      setQpayQrImage(data.qr_image);
+      setQpayUrls(data.urls || []);
     } catch {
       alert("QPay сервертэй холбогдож чадсангүй.");
     }
@@ -633,16 +635,26 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
   QPAY
 </button>
 
-{qpayQrImage && (
-  <div className="mt-4 bg-white p-4 text-center">
-    <p className="text-black mb-3">QPay QR кодыг уншуулна уу</p>
-    <img
-      src={`data:image/png;base64,${qpayQrImage}`}
-      alt="QPay QR"
-      className="mx-auto w-64 max-w-full"
-    />
+{qpayUrls.length > 0 && (
+  <div className="mt-4 space-y-3">
+    <p className="text-center text-white">
+      Төлбөр төлөх банкаа сонгоно уу
+    </p>
+
+    {qpayUrls.map((bank: any, index: number) => (
+      <button
+        key={`${bank.name}-${index}`}
+        onClick={() => {
+          window.location.href = bank.link;
+        }}
+        className="w-full border border-white/20 mt-3 py-4"
+      >
+        {bank.name} — Төлөх
+      </button>
+    ))}
   </div>
 )}
+   
 
 
       <button 
