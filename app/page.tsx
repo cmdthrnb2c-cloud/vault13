@@ -6,7 +6,18 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
-const initialProducts = [
+type Product = {
+  name: string;
+  category: string;
+  price: string;
+  stock: number;
+  image: string;
+};
+
+type QPayUrl = {
+  name: string;
+  link: string;
+};const initialProducts = [
   {
     name: "ROLEX GMT-MASTER II PEPSI",
     category: "WATCHES",
@@ -87,31 +98,31 @@ const [products, setProducts] = useState(initialProducts);
 }, []);
 const [selectedCategory, setSelectedCategory] = useState("ALL");
 const [cart, setCart] = useState(0);
-const [cartItems, setCartItems] = useState<any[]>(() => {
+const [cartItems, setCartItems] = useState<Product[]>(() => {
   if (typeof window === "undefined") return [];
   const saved = localStorage.getItem("vault13-cart");
   return saved ? JSON.parse(saved) : [];
 });
  const [paymentMethod, setPaymentMethod] = useState("");
-const [selectedProduct, setSelectedProduct] = useState<any>(null);
+const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 const [cartOpen, setCartOpen] = useState(false);
 const [checkoutOpen, setCheckoutOpen] = useState(false);
 const [customerName, setCustomerName] = useState("");
+const [checkoutStep, setCheckoutStep] = useState(1);
 const [customerPhone, setCustomerPhone] = useState("");
 const [customerAddress, setCustomerAddress] = useState("");
-const [qpayQrImage, setQpayQrImage] = useState<string | null>(null);
-const [qpayUrls, setQpayUrls] = useState<any[]>([]);
-return (
+const [qpayUrls, setQpayUrls] = useState<QPayUrl[]>([]);
+const [qpayInvoiceId, setQpayInvoiceId] = useState("");return (
   
  <main className="min-h-screen bg-[#0a0a0a] text-white">
       {/* NAVBAR */}
       <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md backdrop-blur">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-          <div className="text-2xl font-black tracking-[0.3em]">
+        <div className="mx-auto grid h-auto max-w-7xl grid-cols-[1fr_auto] grid-rows-[auto_auto] items-center gap-x-4 gap-y-3 px-6 py-3 md:flex md:h-20 md:justify-between md:py-0">
+          <div className="text-xl font-black tracking-[0.3em] md:text-2xl">
             VAULT 13
           </div>
 
-          <div className="hidden gap-10 text-sm tracking-widest md:flex">
+          <div className="col-span-2 row-start-2 flex min-w-0 gap-6 overflow-x-auto overscroll-x-contain whitespace-nowrap text-[11px] tracking-widest touch-pan-x md:gap-10 md:overflow-visible md:text-sm">
             <a href="#home" className="hover:text-gray-400">
               НҮҮР
             </a>
@@ -128,7 +139,7 @@ return (
 
           <button 
             onClick={() => setCartOpen(true)}
-            className="border border-white px-4 py-2 text-xs tracking-widest hover:bg-white hover:text-black"
+            className="col-start-2 row-start-1 border border-white px-4 py-2 text-xs tracking-widest hover:bg-white hover:text-black"
           >
             CART ({cart})
           </button>
@@ -286,7 +297,7 @@ return (
       className="group cursor-pointer"
       onClick={() => setSelectedProduct(product)}
     >
-    <div className="aspect-square bg-zinc-900 overflow-hidden rounded-2xl border border-white/30">
+    <div className="relative aspect-square bg-zinc-900 overflow-hidden rounded-2xl border border-white/30">
         <img
         
   src={product.image}
@@ -298,7 +309,7 @@ return (
     e.stopPropagation();
     setSelectedProduct(product);
   }}
-  className="absolute inset-0 m-auto h-12 w-40 bg-white text-black font-bold opacity-0 group-hover:opacity-100 transition"
+  className="pointer-events-none absolute inset-0 m-auto h-12 w-40 bg-white text-black font-bold opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100"
 >
   ДЭЛГЭРЭНГҮЙ
 </button>
@@ -393,9 +404,8 @@ return (
       </p>
 
       <h2 className="text-2xl font-bold mt-2">
-        {selectedProduct.name}
-      </h2>
-
+  {selectedProduct.name}
+</h2>
       <p className="text-xl mt-4">
         {selectedProduct.price}
       </p>
@@ -419,62 +429,11 @@ onClick={() => {
       >
         ХУДАЛДАН АВАХ
       </button>
-{selectedProduct.description && (
-  <div className="mt-4 text-gray-400 leading-7">
-    {selectedProduct.description}
-  </div>
-)}
-      <div className="border border-white/20 mt-6 p-5">
-        <p className="text-sm tracking-widest text-gray-400">
-          ТӨЛБӨР
-        </p>
-
-<button
-  onClick={async () => {
-    try {
-      const total = cartItems.reduce((sum, item) => {
-        const price = parseInt(String(item.price).replace(/\D/g, ""), 10);
-        return sum + (Number.isFinite(price) ? price : 0);
-      }, 0);
-alert("QPAY товч ажиллаж байна");
-      const response = await fetch("/api/qpay/invoice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: total,
-          orderId: `ORDER-${Date.now()}`,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.error || "QPay нэхэмжлэл үүссэнгүй");
-        return;
-      
-window.open("data:image/png;base64," + data.qr_image, "_blank");
-  alert(
-    "QPay QR үүссэн.\n\n" +
-    "QR мэдээлэл ирсэн эсэх: " +
-    (data.qr_image ? "Зураг байна" : "Зураг алга")
-  );
-}
-    } catch {
-      alert("Сервертэй холбогдож чадсангүй");
-    }
-  }}
-  className="w-full border border-white/20 mt-4 py-3"
->
-  QPAY
-</button>
-
-        <button className="w-full border border-white/30 mt-3 py-3">
-          ХААН БАНК
-        </button>
-      </div>
     </div>
   </div>
-)}{cartOpen && (
+)}
+{cartOpen && (
+
   <div
     className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
     onClick={() => setCartOpen(false)}
@@ -566,37 +525,53 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
         ЗАХИАЛГА
       </h2>
 
-  
-<div className="max-h-[35vh] overflow-y-auto overscroll-contain touch-pan-y space-y-3">
-  <input
-    type="text"
-    placeholder="Нэр"
-    value={customerName}
-    onChange={(e) => setCustomerName(e.target.value)}
-    className="w-full bg-transparent border border-white/20 p-4 mt-6"
-  />
-  <input
-    type="tel"
-    placeholder="Утасны дугаар"
-    value={customerPhone}
-    onChange={(e) => setCustomerPhone(e.target.value)}
-    className="w-full bg-transparent border border-white/20 p-4 mt-3"
-  />
-  <input
-    type="text"
-    placeholder="Хүргэлтийн хаяг"
-    value={customerAddress}
-    onChange={(e) => setCustomerAddress(e.target.value)}
-    className="w-full bg-transparent border border-white/20 p-4 mt-3"
-  />
-</div>
+ {checkoutStep === 1 ? (
+  <div className="space-y-3 mt-6">
+    <input
+      type="text"
+      placeholder="Нэр"
+      value={customerName}
+      onChange={(e) => setCustomerName(e.target.value)}
+      className="w-full bg-transparent border border-white/20 p-4"
+    />
+    <input
+      type="tel"
+      placeholder="Утасны дугаар"
+      value={customerPhone}
+      onChange={(e) => setCustomerPhone(e.target.value)}
+      className="w-full bg-transparent border border-white/20 p-4"
+    />
+    <input
+      type="text"
+      placeholder="Хүргэлтийн хаяг"
+      value={customerAddress}
+      onChange={(e) => setCustomerAddress(e.target.value)}
+      className="w-full bg-transparent border border-white/20 p-4"
+    />
+    <button
+      onClick={() => {
+        if (
+          !customerName.trim() ||
+          !customerPhone.trim() ||
+          !customerAddress.trim()
+        ) {
+          alert("Нэр, утас, хүргэлтийн хаягаа бүрэн бөглөнө үү.");
+          return;
+        }
+        setCheckoutStep(2);
+      }}
+      className="w-full bg-white text-black mt-4 py-4 font-bold"
+    >
+      ҮРГЭЛЖЛҮҮЛЭХ
+    </button>
+  </div>
+) : (
 
 
-
-      <p className="text-sm text-gray-400 mt-6">
-        Төлбөрийн хэлбэр
-      </p>
-
+    <div className="min-h-0 flex-1 overflow-y-auto space-y-3">
+  <p className="text-sm text-gray-400 mt-6">
+    Төлбөрийн хэлбэр
+  </p>
    
 <button
   onClick={async () => {
@@ -628,7 +603,7 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
 
       setPaymentMethod("QPAY");
       setQpayUrls(data.urls || []);
-    } catch {
+    setQpayInvoiceId(data.invoice_id || "");} catch {
       alert("QPay сервертэй холбогдож чадсангүй.");
     }
   }}
@@ -643,7 +618,7 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
       Төлбөр төлөх банкаа сонгоно уу
     </p>
 
-    {qpayUrls.map((bank: any, index: number) => (
+    {qpayUrls.map((bank: { name: string; link: string }, index: number) => (
       <button
         key={`${bank.name}-${index}`}
         onClick={() => {
@@ -654,22 +629,39 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
         {bank.name} — Төлөх
       </button>
     ))}
-  </div>
+    </div>
 )}
-   
+    </div>
+)}
 
-
-      <button 
-        onClick={() => setPaymentMethod("ХААН БАНК")}
-        className="w-full border border-white/20 mt-3 py-4">
-        ХААН БАНК
-      </button>
 
       <button
    onClick={async () => {
-  const total = cartItems.reduce((total, item) => {
-    return total + Number(String(item.price).replace(/[^\d]/g, ""));
-  }, 0);
+  if (!qpayInvoiceId) {
+  alert("Эхлээд QPay нэхэмжлэл үүсгэнэ үү.");
+  return;
+}
+
+const paymentCheck = await fetch("/api/qpay/check", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ invoiceId: qpayInvoiceId }),
+});
+
+const paymentData = await paymentCheck.json();
+
+const total = cartItems.reduce((sum, item) => {
+  return sum + Number(String(item.price).replace(/[^\d]/g, ""));
+}, 0);
+  if (
+  !paymentCheck.ok ||
+  !paymentData.paid ||
+  Number(paymentData.paidAmount) < total
+) {
+  alert("Төлбөр бүрэн баталгаажаагүй байна. QPay төлбөрөө шалгана уу.");
+  return;
+}
+
 
   const { error } = await supabase.from("orders").insert([
     {
@@ -683,7 +675,7 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
   ]);
 
   if (error) {
-    alert("Захиалга хадгалахад алдаа гарлаа: " + error.message);
+   alert("Захиалга хадгалахад алдаа гарлаа: " + (error?.message || "Тодорхойгүй алдаа"));
     return;
   }
 
@@ -713,10 +705,7 @@ window.open("data:image/png;base64," + data.qr_image, "_blank");
  setCart(0);
 setCartItems([]);
 }}
-  className="w-full bg-white text-black mt-6 py-4 font-bold"
->
-        ЗАХИАЛГА БАТАЛГААЖУУЛАХ
-      </button>
+    >ТӨЛБӨР ШАЛГАХ</button>
     </div>
   </div>
 )}

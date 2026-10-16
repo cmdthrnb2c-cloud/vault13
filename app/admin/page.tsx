@@ -25,6 +25,25 @@ useEffect(() => {
   const [availability, setAvailability] = useState("БЭЛЭН");
 const [products, setProducts] = useState<any[]>([]);
 const [orders, setOrders] = useState<any[]>([]);
+const [orderSearch, setOrderSearch] = useState("");
+const [orderDateFilter, setOrderDateFilter] = useState("");
+
+const filteredOrders = orders.filter((order) => {
+  const query = orderSearch.trim().toLowerCase();
+
+  const matchesSearch =
+    !query ||
+    [order.id, order.customer_name, order.customer_phone].some(
+      (value) => String(value ?? "").toLowerCase().includes(query)
+    );
+
+  const matchesDate =
+    !orderDateFilter ||
+    String(order.created_at ?? "").slice(0, 10) === orderDateFilter;
+
+  return matchesSearch && matchesDate;
+});
+
  const addProduct = async () => {
   const name = prompt("Барааны нэр:");
   if (!name) return;
@@ -188,6 +207,24 @@ const fetchOrders = async () => {
 
 fetchOrders();
 }, []);
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayOrders = orders.filter(
+    (order: any) => new Date(order.created_at) >= todayStart
+  );
+
+  const todayRevenue = todayOrders.reduce(
+    (sum: number, order: any) => sum + Number(order.total || 0),
+    0
+  );
+
+  const totalRevenue = orders.reduce(
+    (sum: number, order: any) => sum + Number(order.total || 0),
+    0
+  );
+
 if (!loggedIn) {
   return (
     <main className="min-h-screen bg-black text-white p-8">
@@ -195,6 +232,29 @@ if (!loggedIn) {
         <h1 className="text-3xl font-bold mb-6">
           VAULT 13 ADMIN
         </h1>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+    <div className="border border-white/20 p-6">
+      <p className="text-gray-400">ӨНӨӨДРИЙН БОРЛУУЛАЛТ</p>
+      <p className="text-3xl font-bold mt-3">
+        {todayRevenue.toLocaleString("en-US")}₮
+      </p>
+    </div>
+
+    <div className="border border-white/20 p-6">
+      <p className="text-gray-400">ӨНӨӨДРИЙН ЗАХИАЛГА</p>
+      <p className="text-3xl font-bold mt-3">
+        {todayOrders.length}
+      </p>
+    </div>
+
+    <div className="border border-white/20 p-6">
+      <p className="text-gray-400">НИЙТ БОРЛУУЛАЛТ</p>
+      <p className="text-3xl font-bold mt-3">
+        {totalRevenue.toLocaleString("en-US")}₮
+      </p>
+    </div>
+  </div>
+
 
         <p className="text-gray-400 mb-4">
           ADMIN PANEL
@@ -399,13 +459,30 @@ if (!loggedIn) {
    <div className="mt-6 border border-white/20 p-6">
   <h2 className="text-xl font-bold">ЗАХИАЛГУУД</h2>
 
-{orders.length === 0 ? (
+<div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+  <input
+    type="text"
+    value={orderSearch}
+    onChange={(e) => setOrderSearch(e.target.value)}
+    placeholder="Нэр, утас эсвэл захиалгын дугаар..."
+    className="w-full border border-white/20 bg-black p-3 text-white"
+  />
+  <input
+    type="date"
+    value={orderDateFilter}
+    onChange={(e) => setOrderDateFilter(e.target.value)}
+    className="w-full border border-white/20 bg-black p-3 text-white"
+  />
+</div>
+
+
+{filteredOrders.length === 0 ? (
   <p className="text-gray-500 mt-4">
     Одоогоор захиалга байхгүй.
   </p>
 ) : (
   <div className="mt-6 space-y-4">
-    {orders.map((order) => (
+    {filteredOrders.map((order) => (
       <div
         key={order.id}
         className="border border-white/20 p-5"
