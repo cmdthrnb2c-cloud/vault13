@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -112,7 +112,10 @@ const [checkoutStep, setCheckoutStep] = useState(1);
 const [customerPhone, setCustomerPhone] = useState("");
 const [customerAddress, setCustomerAddress] = useState("");
 const [qpayUrls, setQpayUrls] = useState<QPayUrl[]>([]);
-const [qpayInvoiceId, setQpayInvoiceId] = useState("");return (
+const [qpayInvoiceId, setQpayInvoiceId] = useState("");
+const [isCreatingQpayInvoice, setIsCreatingQpayInvoice] = useState(false);
+const qpayInvoiceRequestInFlight = useRef(false);
+return (
   
  <main className="min-h-screen bg-[#0a0a0a] text-white">
       {/* NAVBAR */}
@@ -585,7 +588,12 @@ onClick={() => {
   </p>
    
 <button
+  type="button"
+  disabled={isCreatingQpayInvoice}
+  aria-busy={isCreatingQpayInvoice}
   onClick={async () => {
+    if (qpayInvoiceRequestInFlight.current) return;
+
     const total = cartItems.reduce((sum, item) => {
       return sum + Number(String(item.price).replace(/[^\d]/g, ""));
     }, 0);
@@ -594,6 +602,12 @@ onClick={() => {
       alert("Сагсны төлбөрийн дүн 0 байна.");
       return;
     }
+
+    qpayInvoiceRequestInFlight.current = true;
+    setIsCreatingQpayInvoice(true);
+    setQpayUrls([]);
+    setQpayInvoiceId("");
+    const requestStartedAt = performance.now();
 
     try {
       const response = await fetch("/api/qpay/invoice", {
@@ -606,6 +620,9 @@ onClick={() => {
       });
 
       const data = await response.json();
+      console.info(
+        `QPay invoice API response time: ${Math.round(performance.now() - requestStartedAt)} ms`
+      );
 
       if (!response.ok) {
         alert(data.error || "QPay нэхэмжлэл үүссэнгүй");
@@ -614,21 +631,17 @@ onClick={() => {
 
       setPaymentMethod("QPAY");
       setQpayUrls(data.urls || []);
-    setQpayInvoiceId(data.invoice_id || "");} catch {
+      setQpayInvoiceId(data.invoice_id || "");
+    } catch {
       alert("QPay сервертэй холбогдож чадсангүй.");
+    } finally {
+      qpayInvoiceRequestInFlight.current = false;
+      setIsCreatingQpayInvoice(false);
     }
   }}
-  className="w-full border border-white/20 mt-3 py-4"
+  className="w-full border border-white/20 mt-3 py-4 disabled:cursor-wait disabled:opacity-60"
 >
-  QPAY
-</button>
-<button
-  onClick={() => {
-    setCheckoutStep(2);
-  }}
-  className="w-full bg-white text-black mt-3 py-4 font-bold"
->
-  ТӨЛБӨР ШАЛГАХ
+  {isCreatingQpayInvoice ? "Нэхэмжлэл үүсгэж байна..." : "QPAY"}
 </button>
 {qpayUrls.length > 0 && (
   <div className="mt-4 space-y-3 max-h-[55vh] overflow-y-auto overscroll-contain touch-pan-y">
@@ -647,83 +660,87 @@ onClick={() => {
         {bank.name} — Төлөх
       </button>
     ))}
+  </div>
+)}
+<button
+  type="button"
+  onClick={async () => {
+    try {
+      if (!qpayInvoiceId) {
+        alert("Эхлээд QPay нэхэмжлэл үүсгэнэ үү.");
+        return;
+      }
+
+      const total = cartItems.reduce((sum, item) => {
+        return sum + Number(String(item.price).replace(/[^\d]/g, ""));
+      }, 0);
+      const paymentCheck = await fetch("/api/qpay/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId: qpayInvoiceId }),
+      });
+      const paymentData = await paymentCheck.json();
+
+      if (
+        !paymentCheck.ok ||
+        !paymentData.paid ||
+        Number(paymentData.paidAmount) < total
+      ) {
+        alert("Төлбөр бүрэн баталгаажаагүй байна. QPay төлбөрөө шалгана уу.");
+        return;
+      }
+
+      const { error } = await supabase.from("orders").insert([
+        {
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_address: customerAddress,
+          payment_method: paymentMethod,
+          items: cartItems,
+          total,
+        },
+      ]);
+
+      if (error) {
+        alert("Захиалга хадгалахад алдаа гарлаа: " + error.message);
+        return;
+      }
+
+      alert(
+        "Захиалга амжилттай бүртгэгдлээ.\n\n" +
+          "Нэр: " + customerName + "\n" +
+          "Утас: " + customerPhone + "\n" +
+          "Хаяг: " + customerAddress + "\n" +
+          "Төлбөрийн хэлбэр: " + paymentMethod + "\n" +
+          "Нийт дүн: " + total.toLocaleString() + "₮"
+      );
+
+      setCheckoutOpen(false);
+      setProducts((prevProducts) =>
+        prevProducts.map((product) => {
+          const orderedCount = cartItems.filter(
+            (item) => item.name === product.name
+          ).length;
+
+          return {
+            ...product,
+            stock: Math.max(0, product.stock - orderedCount),
+          };
+        })
+      );
+      setCart(0);
+      setCartItems([]);
+    } catch (error) {
+      console.error("Төлбөр шалгахад алдаа:", error);
+      alert("Төлбөр шалгахад алдаа гарлаа. Дахин оролдоно уу.");
+    }
+  }}
+  className="w-full bg-white text-black mt-3 py-4 font-bold"
+>
+  ТӨЛБӨР ШАЛГАХ
+</button>
     </div>
 )}
-    </div>
-)}
-
-
-      <button
-   onClick={async () => {
-  if (!qpayInvoiceId) {
-  alert("Эхлээд QPay нэхэмжлэл үүсгэнэ үү.");
-  return;
-}
-
-const paymentCheck = await fetch("/api/qpay/check", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ invoiceId: qpayInvoiceId }),
-});
-
-const paymentData = await paymentCheck.json();
-
-const total = cartItems.reduce((sum, item) => {
-  return sum + Number(String(item.price).replace(/[^\d]/g, ""));
-}, 0);
-  if (
-  !paymentCheck.ok ||
-  !paymentData.paid ||
-  Number(paymentData.paidAmount) < total
-) {
-  alert("Төлбөр бүрэн баталгаажаагүй байна. QPay төлбөрөө шалгана уу.");
-  return;
-}
-
-
-  const { error } = await supabase.from("orders").insert([
-    {
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      customer_address: customerAddress,
-      payment_method: paymentMethod,
-      items: cartItems,
-      total: total,
-    },
-  ]);
-
-  if (error) {
-   alert("Захиалга хадгалахад алдаа гарлаа: " + (error?.message || "Тодорхойгүй алдаа"));
-    return;
-  }
-
-  alert(
-    "Захиалга амжилттай бүртгэгдлээ.\n\n" +
-    "Нэр: " + customerName + "\n" +
-    "Утас: " + customerPhone + "\n" +
-    "Хаяг: " + customerAddress + "\n" +
-    "Төлбөрийн хэлбэр: " + paymentMethod + "\n" +
-    "Нийт дүн: " + total.toLocaleString() + "₮"
-  );
-
-  setCheckoutOpen(false);
-    
-   setProducts((prevProducts) =>
-  prevProducts.map((product) => {
-    const orderedCount = cartItems.filter(
-      (item) => item.name === product.name
-    ).length;
-
-    return {
-      ...product,
-      stock: Math.max(0, product.stock - orderedCount),
-    };
-  })
-);
- setCart(0);
-setCartItems([]);
-}}
-    ></button>
     </div>
   </div>
 )}
