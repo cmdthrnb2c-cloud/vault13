@@ -622,7 +622,14 @@ onClick={() => {
 >
   QPAY
 </button>
-
+<button
+  onClick={() => {
+    setCheckoutStep(2);
+  }}
+  className="w-full bg-white text-black mt-3 py-4 font-bold"
+>
+  ТӨЛБӨР ШАЛГАХ
+</button>
 {qpayUrls.length > 0 && (
   <div className="mt-4 space-y-3 max-h-[55vh] overflow-y-auto overscroll-contain touch-pan-y">
     <p className="text-center text-white">
@@ -716,7 +723,7 @@ const total = cartItems.reduce((sum, item) => {
  setCart(0);
 setCartItems([]);
 }}
-    >ТӨЛБӨР ШАЛГАХ</button>
+    ></button>
     </div>
   </div>
 )}
