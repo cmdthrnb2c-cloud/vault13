@@ -331,11 +331,22 @@ const [qpayInvoiceId, setQpayInvoiceId] = useState("");return (
 
 {product.stock > 0 ? (
   <button
-    onClick={(e) => {
-      e.stopPropagation();
-      setCart((prev) => prev + 1);
-      setCartItems((prev) => [...prev, product]);
-    }}
+   
+onClick={(e) => {
+  e.stopPropagation();
+
+  setCart((prev) => prev + 1);
+  setCartItems((prev) => [...prev, product]);
+
+  if (typeof window !== "undefined" && typeof (window as any).fbq === "function") {
+    (window as any).fbq("track", "AddToCart", {
+      content_name: product.name,
+      content_ids: [String(product.name)],
+      content_type: "product",
+    });
+  }
+}}
+
     className="w-full border border-white mt-5 py-3"
   >
     САГСАНД НЭМЭХ
