@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/meta-monitor",
-      "schedule": "0 * * * *"
+     "schedule": "0 0 * * *"
     }
   ]
 }
