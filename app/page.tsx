@@ -591,7 +591,9 @@ return (
   <button
 onClick={(e) => {
   e.stopPropagation();
-  addToCart(product);
+  if (addToCart(product)) {
+    setCartOpen(true);
+  }
 }}
 
     className="w-full border border-white mt-5 py-3"
@@ -687,22 +689,41 @@ onClick={(e) => {
   )}
 </div>
 
-      <button
-onClick={() => {
-  const added = addToCart(selectedProduct);
-  if (added) {
-    setSelectedProduct(null);
-    setCartOpen(true);
-  }
-}}
-disabled={
-  normalizeAvailability(selectedProduct.availability) !== "PREORDER" &&
-  Number(selectedProduct.stock) <= 0
-}
-className="w-full bg-white text-black mt-6 py-4 font-bold"
-      >
-САГСАНД НЭМЭХ
-      </button>
+      <div className="mt-6 flex flex-col gap-3 md:flex-row">
+        <button
+          onClick={() => {
+            const added = addToCart(selectedProduct);
+            if (added) {
+              setSelectedProduct(null);
+              setCartOpen(true);
+            }
+          }}
+          disabled={
+            normalizeAvailability(selectedProduct.availability) !== "PREORDER" &&
+            Number(selectedProduct.stock) <= 0
+          }
+          className="w-full flex-1 bg-white text-black py-4 font-bold"
+        >
+          САГСАНД НЭМЭХ
+        </button>
+        <button
+          onClick={() => {
+            const added = addToCart(selectedProduct);
+            if (added) {
+              setSelectedProduct(null);
+              setCheckoutStep(1);
+              setCheckoutOpen(true);
+            }
+          }}
+          disabled={
+            normalizeAvailability(selectedProduct.availability) !== "PREORDER" &&
+            Number(selectedProduct.stock) <= 0
+          }
+          className="w-full flex-1 border border-white py-4 font-bold"
+        >
+          ХУДАЛДАН АВАХ
+        </button>
+      </div>
     </div>
   </div>
 )}
