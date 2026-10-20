@@ -61,3 +61,18 @@ export async function POST(request: Request) {
 
   return response;
 }
+
+export async function DELETE() {
+  const response = NextResponse.json(
+    { authenticated: false },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+  response.cookies.set(ADMIN_SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: 0,
+  });
+  return response;
+}

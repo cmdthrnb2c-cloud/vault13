@@ -1,3 +1,4 @@
+import "server-only";
 import { createHmac, createHash, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 

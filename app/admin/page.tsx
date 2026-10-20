@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PREORDER_ORDER_STATUSES } from "@/lib/commerce";
 
 type MetaInsight = {
   date_start?: string;
@@ -387,6 +388,18 @@ if (!loggedIn) {
         <h1 className="text-3xl font-bold tracking-[0.2em]">
           VAULT 13 ADMIN
         </h1>
+        <button
+          type="button"
+          onClick={async () => {
+            await fetch("/api/admin/auth", { method: "DELETE" });
+            setLoggedIn(false);
+            setProducts([]);
+            setOrders([]);
+          }}
+          className="mt-4 border border-white/30 px-4 py-2 text-sm"
+        >
+          ГАРАХ
+        </button>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10">
           <div className="border border-white/20 p-6">
@@ -573,6 +586,32 @@ if (!loggedIn) {
   const price = prompt("Шинэ үнэ:", String(product.price));
   if (price === null) return;
 
+  const categoryChoice = prompt(
+    "Ангилал: 1. ЦАГ  2. ХУВЦАС  3. ГУТАЛ  4. АКСЕССУАР",
+    product.category === "WATCHES" ? "1" : product.category === "CLOTHING" ? "2" : product.category === "SHOES" ? "3" : "4"
+  );
+  if (categoryChoice === null) return;
+  const categoryMap: Record<string, string> = {
+    "1": "WATCHES",
+    "2": "CLOTHING",
+    "3": "SHOES",
+    "4": "ACCESSORIES",
+  };
+  const category = categoryMap[categoryChoice.trim()];
+  if (!category) {
+    alert("1, 2, 3 эсвэл 4 гэж сонгоно уу.");
+    return;
+  }
+
+  const availability = prompt(
+    "Барааны төлөв: IN_STOCK эсвэл PREORDER",
+    product.availability ?? "IN_STOCK"
+  );
+  if (availability === null) return;
+
+  const description = prompt("Шинэ тайлбар:", product.description ?? "");
+  if (description === null) return;
+
   const image = prompt("Шинэ зургийн URL:", product.image);
   if (image === null) return;
 
@@ -581,7 +620,14 @@ if (!loggedIn) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       id: Number(product.id),
-      updates: { name, price: Number(price), image },
+      updates: {
+        name,
+        price: Number(price),
+        category,
+        availability,
+        description,
+        image,
+      },
     }),
   });
   const result = await response.json();
@@ -706,6 +752,59 @@ if (!loggedIn) {
 <p>
   <strong>Төлбөр:</strong> {order.payment_method}
 </p>
+<p className="mt-1">
+  <strong>Төлбөрийн төлөв:</strong> {order.payment_status === "PAID" ? "Төлбөр баталгаажсан" : "Төлбөр хүлээгдэж байна"}
+</p>
+{order.inventory_issue && (
+  <p className="mt-2 border border-red-400/40 p-3 text-red-200" role="alert">
+    Төлбөр баталгаажсан боловч үлдэгдэл хүрэлцээгүй байна. Нөөцийг шалгана уу.
+  </p>
+)}
+{order.has_preorder && (
+  <div className="mt-3 space-y-1">
+    <p className="text-amber-200">УРЬДЧИЛСАН ЗАХИАЛГА — 6–9 хоног</p>
+    {order.expected_arrival_at && (
+      <p className="text-sm text-gray-400">
+        Тооцоолсон хугацаа: {new Date(order.expected_arrival_at).toLocaleDateString("mn-MN")}
+      </p>
+    )}
+    {order.is_overdue && !["Хүргэгдсэн", "Цуцлагдсан"].includes(order.order_status ?? "") && (
+      <p className="font-semibold text-red-300" role="status">
+        ХУГАЦАА ХЭТРЭВ — Админ шалгах шаардлагатай
+      </p>
+    )}
+  </div>
+)}
+<label className="mt-3 flex flex-col gap-2 text-sm">
+  <span><strong>Захиалгын төлөв:</strong></span>
+  <select
+    value={order.order_status ?? "Төлбөр хүлээгдэж байна"}
+    onChange={async (event) => {
+      const response = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id, orderStatus: event.target.value }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        console.error("Order status update failed:", result.error);
+        return;
+      }
+      setOrders((current) => current.map((item) => item.id === order.id ? result.order : item));
+    }}
+    className="w-full border border-white/20 bg-black p-3 sm:max-w-sm"
+  >
+    {PREORDER_ORDER_STATUSES.map((status) => (
+      <option
+        key={status}
+        value={status}
+        disabled={status === "Төлбөр баталгаажсан" && order.payment_status !== "PAID"}
+      >
+        {status}
+      </option>
+    ))}
+  </select>
+</label>
 
 <div className="mt-3">
   <strong>Захиалсан бараа:</strong>
