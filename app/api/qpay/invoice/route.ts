@@ -1,85 +1,63 @@
-
 import { NextResponse } from "next/server";
+import { verifyCheckoutToken } from "@/lib/checkout-auth";
+import { createSupabaseAdminClient } from "@/lib/supabase-server";
+import { createQPayInvoice, getQPayAccessToken } from "@/lib/qpay";
 
 export async function POST(request: Request) {
+  let body: { orderId?: unknown; checkoutToken?: unknown };
   try {
-    const { amount, orderId } = await request.json();
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Захиалгын мэдээлэл буруу байна." }, { status: 400 });
+  }
 
-    if (!amount || Number(amount) <= 0 || !orderId) {
-      return NextResponse.json(
-        { error: "Төлбөрийн дүн эсвэл захиалгын дугаар буруу байна" },
-        { status: 400 }
-      );
+  const orderId = String(body.orderId ?? "");
+  if (!/^\d+$/.test(orderId) || typeof body.checkoutToken !== "string") {
+    return NextResponse.json({ error: "Захиалгын дугаар буруу байна." }, { status: 400 });
+  }
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id, total, payment_status, checkout_token_hash")
+      .eq("id", Number(orderId))
+      .single();
+
+    if (orderError) throw orderError;
+    if (!verifyCheckoutToken(body.checkoutToken, order.checkout_token_hash)) {
+      return NextResponse.json({ error: "Захиалгын баталгаажуулалт буруу байна." }, { status: 403 });
+    }
+    if (order.payment_status !== "PENDING") {
+      return NextResponse.json({ error: "Энэ захиалгын төлбөр хүлээгдээгүй байна." }, { status: 409 });
     }
 
-    const clientId = process.env.QPAY_CLIENT_ID;
-    const clientSecret = process.env.QPAY_CLIENT_SECRET;
-    const invoiceCode = process.env.QPAY_INVOICE_CODE;
-
-    if (!clientId || !clientSecret || !invoiceCode) {
-      return NextResponse.json(
-        { error: "QPay тохиргоо дутуу байна" },
-        { status: 500 }
-      );
-    }
-
-    const credentials = Buffer.from(
-      `${clientId}:${clientSecret}`
-    ).toString("base64");
-
-    const tokenResponse = await fetch(
-      "https://merchant.qpay.mn/v2/auth/token",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${credentials}`,
-          "Content-Type": "application/json",
-        },
-      }
+    const accessToken = await getQPayAccessToken();
+    const invoice = await createQPayInvoice(
+      accessToken,
+      orderId,
+      Number(order.total)
     );
 
-    const tokenData = await tokenResponse.json();
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update({ qpay_invoice_id: invoice.invoice_id })
+      .eq("id", Number(orderId));
+    if (updateError) throw updateError;
 
-    if (!tokenResponse.ok || !tokenData.access_token) {
+    return NextResponse.json(invoice);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "QPAY_CONFIGURATION") {
+      return NextResponse.json({ error: "QPay тохиргоо дутуу байна." }, { status: 500 });
+    }
+    if (message.startsWith("QPAY_")) {
+      const authFailed = message === "QPAY_AUTH_FAILED";
       return NextResponse.json(
-        { error: "QPay нэвтрэлт амжилтгүй" },
+        { error: authFailed ? "QPay нэвтрэлт амжилтгүй." : "QPay нэхэмжлэл үүсгэсэнгүй." },
         { status: 502 }
       );
     }
-
-    const invoiceResponse = await fetch(
-      "https://merchant.qpay.mn/v2/invoice",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          invoice_code: invoiceCode,
-          sender_invoice_no: String(orderId),
-          invoice_receiver_code: "terminal",
-          invoice_description: `Vault13 захиалга ${orderId}`,
-          amount: Number(amount),
-         callback_url: "https://vault13-six.vercel.app/api/qpay/callback",
-        }),
-      }
-    );
-
-    const invoiceData = await invoiceResponse.json();
-
-    if (!invoiceResponse.ok) {
-      return NextResponse.json(
-        { error: "QPay нэхэмжлэл үүсгэсэнгүй", details: invoiceData },
-        { status: invoiceResponse.status }
-      );
-    }
-
-    return NextResponse.json(invoiceData);
-  } catch {
-    return NextResponse.json(
-      { error: "Серверийн алдаа гарлаа" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Захиалгын мэдээлэл уншиж чадсангүй." }, { status: 500 });
   }
 }
