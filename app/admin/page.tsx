@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { normalizeAvailability, PREORDER_ORDER_STATUSES } from "@/lib/commerce";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const supabase = supabaseUrl && supabasePublishableKey
+  ? createClient(supabaseUrl, supabasePublishableKey)
+  : null;
 
 type MetaInsight = {
   date_start?: string;
@@ -28,6 +30,40 @@ type MetaAlert = {
   dateStop?: string;
 };
 
+type AdminProduct = {
+  id: number;
+  name: string;
+  category: string;
+  price: string | number;
+  image: string;
+  stock: number;
+  availability?: string | null;
+  description?: string | null;
+};
+
+type AdminOrder = {
+  id: number;
+  customer_name: string;
+  customer_phone: string;
+  customer_address: string;
+  payment_method: string;
+  payment_status?: string;
+  order_status?: string;
+  inventory_issue?: boolean;
+  has_preorder?: boolean;
+  expected_arrival_at?: string | null;
+  is_overdue?: boolean;
+  items: Array<{
+    id?: number;
+    product_id?: number;
+    name?: string;
+    price?: number;
+    quantity?: number;
+  }>;
+  total: number | string;
+  created_at: string;
+};
+
 const formatInsightValue = (value?: string, fractionDigits = 0) => {
   const number = Number(value);
   if (!Number.isFinite(number)) return "-";
@@ -42,19 +78,23 @@ const formatInsightValue = (value?: string, fractionDigits = 0) => {
 
 export default function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
-useEffect(() => {
-  setLoggedIn(sessionStorage.getItem("vault13_admin") === "true");
-}, []);
-
+  const [authChecked, setAuthChecked] = useState(false);
   const [password, setPassword] = useState("");
-    const [productName, setProductName] = useState("");
-  const [productCategory, setProductCategory] = useState("WATCHES");
-  const [productPrice, setProductPrice] = useState("");
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
-  const [productStock, setProductStock] = useState("0");
-  const [availability, setAvailability] = useState("БЭЛЭН");
-const [products, setProducts] = useState<any[]>([]);
-const [orders, setOrders] = useState<any[]>([]);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [adminMessage, setAdminMessage] = useState("");
+  const [productForm, setProductForm] = useState({
+    name: "",
+    category: "WATCHES",
+    price: "",
+    stock: "0",
+    availability: "IN_STOCK",
+    description: "",
+    image: "",
+  });
+const [products, setProducts] = useState<AdminProduct[]>([]);
+const [orders, setOrders] = useState<AdminOrder[]>([]);
 const [orderSearch, setOrderSearch] = useState("");
 const [orderDateFilter, setOrderDateFilter] = useState("");
 const [metaInsights, setMetaInsights] = useState<MetaInsight[]>([]);
@@ -81,169 +121,159 @@ const filteredOrders = orders.filter((order) => {
   return matchesSearch && matchesDate;
 });
 
- const addProduct = async () => {
-  const name = prompt("Барааны нэр:");
-  if (!name) return;
-
-  const description = prompt("Барааны тайлбар:") || "";
-
-  const categoryChoice = prompt(
-    "Ангилал сонгоно уу:\n1. ЦАГ\n2. ХУВЦАС\n3. ГУТАЛ\n4. АКСЕССУАР",
-    "1"
-  );
-
-  if (!categoryChoice) return;
-
-
-const categoryMap: Record<string, string> = {
-  "1": "WATCHES",
-  "2": "CLOTHING",
-  "3": "SHOES",
-  "4": "ACCESSORIES",
-};
-
-const category = categoryMap[categoryChoice.trim()];
-
-if (!category) {
-  alert("1, 2, 3 эсвэл 4 гэж сонгоно уу.");
-  return;
-}
-
-    if (!category) return;
-
-    const price = prompt("Үнэ:");
-    if (!price) return;
-
-const stock = prompt("Үлдэгдэл:", "5");
-if (!stock) return;
-
-const availability = prompt(
-  "Барааны төлөв: БЭЛЭН эсвэл ЗАХИАЛГААР",
-  "БЭЛЭН"
-);
-if (!availability) return;
-  if (!productImageFile) {
-  alert("Эхлээд зураг сонгоно уу.");
-  return;
-}
-
-const fileExt = productImageFile.name.split(".").pop();
-const fileName = `${Date.now()}.${fileExt}`;
-
-const { error: uploadError } = await supabase.storage
-  .from("product-images")
-  .upload(fileName, productImageFile);
-
-if (uploadError) {
-  console.error("UPLOAD ERROR:", uploadError);
-  alert("Зураг upload хийхэд алдаа гарлаа:\n" + JSON.stringify(uploadError, null, 2));
-  return;
-}
-
-const { data: imageData } = supabase.storage
-  .from("product-images")
-  .getPublicUrl(fileName);
-
-const image = imageData.publicUrl;
-
-const { error } = await supabase.from("products").insert([
-  {
-    name,
-    category,
-    price: Number(price),
-    image,
-    stock: Number(stock),
-    availability,
-    description,
-  },
-]);
-
-    if (error) {
-      alert("Бараа нэмэхэд алдаа гарлаа: " + error.message);
-      return;
-    }
-
-    alert("Бараа амжилттай нэмэгдлээ.");
-    window.location.reload();
-  };
-  const deleteProduct = async () => {
-  if (products.length === 0) {
-    alert("Устгах бараа байхгүй байна.");
-    return;
-  }
-
-  const list = products
-    .map((item, index) => `${index + 1}. ${item.name}`)
-    .join("\n");
-
-  const choice = prompt(
-    "Устгах бараагаа сонгоно уу:\n\n" +
-      list +
-      "\n\nДугаар оруулна уу:"
-  );
-
-  if (choice === null) return;
-
-  const index = Number(choice) - 1;
-
-  if (index < 0 || index >= products.length) {
-    alert("Буруу дугаар.");
-    return;
-  }
-
-  const product = products[index];
-
-  if (!confirm(`"${product.name}" барааг устгах уу?`)) return;
-
-  const { error } = await supabase
-    .from("products")
-    .delete()
-    .eq("id", Number(product.id));
-
-  if (error) {
-    alert("Бараа устгахад алдаа гарлаа: " + error.message);
-    return;
-  }
-
-  alert("Бараа амжилттай устгагдлаа.");
-  window.location.reload();
-};
 useEffect(() => {
- 
-  const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("id", { ascending: true });
+ let cancelled = false;
+ fetch("/api/admin/auth", { cache: "no-store" })
+   .then(async (response) => {
+     const result = await response.json();
+     if (!cancelled) setLoggedIn(response.ok && result.authenticated === true);
+   })
+   .catch(() => {
+     if (!cancelled) setAdminMessage("Админы нэвтрэлтийг шалгаж чадсангүй.");
+   })
+   .finally(() => {
+     if (!cancelled) setAuthChecked(true);
+   });
 
-    if (error) {
-      alert("Supabase алдаа: " + error.message);
-      console.error("Products error:", error);
-      return;
-    }
-
-    setProducts(data ?? []);
-  };
-
-  fetchProducts();
+ return () => {
+   cancelled = true;
+ };
 }, []);
+
 useEffect(() => {
-const fetchOrders = async () => {
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .order("created_at", { ascending: false });
+ if (!loggedIn) return;
+ let cancelled = false;
+ const loadAdminData = async () => {
+   const [productsResponse, ordersResponse] = await Promise.all([
+     fetch("/api/admin/products", { cache: "no-store" }),
+     fetch("/api/admin/orders", { cache: "no-store" }),
+   ]);
+   const [productsResult, ordersResult] = await Promise.all([
+     productsResponse.json(),
+     ordersResponse.json(),
+   ]);
 
-  if (error) {
-    console.error("Orders error:", error);
-    return;
-  }
+   if (cancelled) return;
+  if (!productsResponse.ok) {
+  setAdminMessage(productsResult.error || "Бараа ачаалж чадсангүй.");
+  return;
+}
 
-  setOrders(data || []);
+setProducts(productsResult.products ?? []);
+
+if (!ordersResponse.ok) {
+  setAdminMessage(ordersResult.error || "Захиалга ачаалж чадсангүй.");
+  return;
+}
+
+setOrders(ordersResult.orders ?? []);
+ };
+
+ void loadAdminData().catch(() => {
+   if (!cancelled) setAdminMessage("Админы мэдээлэл ачаалж чадсангүй.");
+ });
+ return () => {
+   cancelled = true;
+ };
+}, [loggedIn]);
+
+const resetProductForm = () => {
+ setEditingProductId(null);
+ setProductImageFile(null);
+ setProductForm({
+   name: "",
+   category: "WATCHES",
+   price: "",
+   stock: "0",
+   availability: "IN_STOCK",
+   description: "",
+   image: "",
+ });
 };
 
-fetchOrders();
-}, []);
+const editProduct = (product: AdminProduct) => {
+ setEditingProductId(Number(product.id));
+ setProductImageFile(null);
+ setProductForm({
+   name: String(product.name ?? ""),
+   category: String(product.category ?? "WATCHES"),
+   price: String(product.price ?? ""),
+   stock: String(product.stock ?? 0),
+   availability: normalizeAvailability(product.availability),
+   description: String(product.description ?? ""),
+   image: String(product.image ?? ""),
+ });
+};
+
+const saveProduct = async () => {
+ setAdminMessage("");
+ if (!productForm.name.trim() || !productForm.price || (!productForm.image.trim() && !productImageFile)) {
+   setAdminMessage("Нэр, үнэ болон зургийн URL эсвэл зургийн файл оруулна уу.");
+   return;
+ }
+
+ setIsSavingProduct(true);
+ try {
+   let image = productForm.image.trim();
+   if (productImageFile) {
+     if (!supabase) throw new Error("Supabase image upload тохиргоо дутуу байна.");
+     const extension = productImageFile.name.split(".").pop() || "jpg";
+     const fileName = `${Date.now()}.${extension}`;
+     const { error: uploadError } = await supabase.storage
+       .from("product-images")
+       .upload(fileName, productImageFile);
+     if (uploadError) throw new Error(`Зураг upload хийхэд алдаа гарлаа: ${uploadError.message}`);
+     image = supabase.storage.from("product-images").getPublicUrl(fileName).data.publicUrl;
+   }
+
+   const response = await fetch("/api/admin/products", {
+     method: editingProductId === null ? "POST" : "PATCH",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({
+       ...productForm,
+       id: editingProductId,
+       price: Number(productForm.price.replace(/[^\d]/g, "")),
+       stock: Number(productForm.stock),
+       image,
+     }),
+   });
+   const result = await response.json();
+   if (!response.ok) throw new Error(result.error || "Бараа хадгалж чадсангүй.");
+
+   setProducts((current) => editingProductId === null
+     ? [...current, result.product]
+     : current.map((item) => item.id === result.product.id ? result.product : item));
+   resetProductForm();
+   setAdminMessage("Барааны мэдээлэл амжилттай хадгалагдлаа.");
+ } catch (error) {
+   setAdminMessage(error instanceof Error ? error.message : "Бараа хадгалж чадсангүй.");
+ } finally {
+   setIsSavingProduct(false);
+ }
+};
+
+const deleteProduct = async () => {
+ if (editingProductId === null) {
+   setAdminMessage("Устгах барааг эхлээд сонгоно уу.");
+   return;
+ }
+ const product = products.find((item) => Number(item.id) === editingProductId);
+ if (!product || !confirm(`"${product.name}" барааг устгах уу?`)) return;
+
+ const response = await fetch("/api/admin/products", {
+   method: "DELETE",
+   headers: { "Content-Type": "application/json" },
+   body: JSON.stringify({ id: editingProductId }),
+ });
+ const result = await response.json();
+ if (!response.ok) {
+   setAdminMessage(result.error || "Бараа устгаж чадсангүй.");
+   return;
+ }
+ setProducts((current) => current.filter((item) => Number(item.id) !== editingProductId));
+ resetProductForm();
+ setAdminMessage("Бараа амжилттай устгагдлаа.");
+};
 useEffect(() => {
   if (!loggedIn) return;
 
@@ -298,23 +328,6 @@ const metaPerformanceSummary = latestMetaInsight
   ? `The account delivered ${formatInsightValue(latestMetaInsight.impressions)} impressions and ${formatInsightValue(latestMetaInsight.clicks)} clicks at ${formatInsightValue(latestMetaInsight.ctr, 2)}% CTR. Spend was ${formatInsightValue(latestMetaInsight.spend, 2)}, with ${formatInsightValue(latestMetaInsight.cpc, 2)} average CPC and ${formatInsightValue(latestMetaInsight.cpm, 2)} CPM.`
   : "No account insights are available for this reporting period.";
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const todayOrders = orders.filter(
-    (order: any) => new Date(order.created_at) >= todayStart
-  );
-
-  const todayRevenue = todayOrders.reduce(
-    (sum: number, order: any) => sum + Number(order.total || 0),
-    0
-  );
-
-  const totalRevenue = orders.reduce(
-    (sum: number, order: any) => sum + Number(order.total || 0),
-    0
-  );
-
 if (!loggedIn) {
   return (
     <main className="min-h-screen bg-black text-white p-8">
@@ -322,30 +335,10 @@ if (!loggedIn) {
         <h1 className="text-3xl font-bold mb-6">
           VAULT 13 ADMIN
         </h1>
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-    <div className="border border-white/20 p-6">
-      <p className="text-gray-400">ӨНӨӨДРИЙН БОРЛУУЛАЛТ</p>
-      <p className="text-3xl font-bold mt-3">
-        {todayRevenue.toLocaleString("en-US")}₮
-      </p>
-    </div>
-
-    <div className="border border-white/20 p-6">
-      <p className="text-gray-400">ӨНӨӨДРИЙН ЗАХИАЛГА</p>
-      <p className="text-3xl font-bold mt-3">
-        {todayOrders.length}
-      </p>
-    </div>
-
-    <div className="border border-white/20 p-6">
-      <p className="text-gray-400">НИЙТ БОРЛУУЛАЛТ</p>
-      <p className="text-3xl font-bold mt-3">
-        {totalRevenue.toLocaleString("en-US")}₮
-      </p>
-    </div>
-  </div>
-
-
+        {!authChecked ? (
+          <p className="text-gray-400">Нэвтрэлтийг шалгаж байна...</p>
+        ) : (
+          <>
         <p className="text-gray-400 mb-4">
           ADMIN PANEL
         </p>
@@ -359,18 +352,28 @@ if (!loggedIn) {
         />
 
         <button
-          onClick={() => {
-            sessionStorage.setItem("vault13_admin", "true");
-            if (password === "04f0a1034451A?") {
-              setLoggedIn(true);
-            } else {
-              alert("Нууц үг буруу");
+          onClick={async () => {
+            setAdminMessage("");
+            const response = await fetch("/api/admin/auth", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ password }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+              setAdminMessage(result.error || "Нэвтрэхэд алдаа гарлаа.");
+              return;
             }
+            setPassword("");
+            setLoggedIn(true);
           }}
           className="w-full border border-white py-4"
         >
           НЭВТРЭХ
         </button>
+          </>
+        )}
+        {adminMessage && <p className="mt-4 text-amber-300" role="alert">{adminMessage}</p>}
       </div>
     </main>
   );
@@ -382,6 +385,18 @@ if (!loggedIn) {
         <h1 className="text-3xl font-bold tracking-[0.2em]">
           VAULT 13 ADMIN
         </h1>
+        <button
+          type="button"
+          onClick={async () => {
+            await fetch("/api/admin/auth", { method: "DELETE" });
+            setLoggedIn(false);
+            setProducts([]);
+            setOrders([]);
+          }}
+          className="mt-4 border border-white/30 px-4 py-2 text-sm"
+        >
+          ГАРАХ
+        </button>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10">
           <div className="border border-white/20 p-6">
@@ -507,151 +522,91 @@ if (!loggedIn) {
           )}
         </section>
 
-        <div className="mt-10 border border-white/20 p-6">
-          <h2 className="text-xl font-bold">БҮТЭЭГДЭХҮҮН УДИРДАХ</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-  <button
-    onClick={addProduct}
-    className="border border-white py-4"
-  >
-    БАРАА НЭМЭХ
-  </button>
-
-  <button
-    onClick={deleteProduct}
-    className="border border-white py-4"
-  >
-    БАРАА УСТГАХ
-  </button>
-</div>
-<input
-  type="file"
-  accept="image/*"
-  onChange={(e) => {
-    setProductImageFile(e.target.files?.[0] || null);
-  }}
-  className="border border-white py-3 px-4"
-/>
-    <button
-  onClick={async () => {
-  if (products.length === 0) {
-    alert("Бараа байхгүй байна.");
-    return;
-  }
-
-  const list = products
-    .map((item, index) => `${index + 1}. ${item.name}`)
-    .join("\n");
-
-  const choice = prompt(
-    "Засах бараагаа сонгоно уу:\n\n" +
-    list +
-    "\n\nДугаар оруулна уу:"
-  );
-
-  if (choice === null) return;
-
-  const index = Number(choice) - 1;
-
-  if (index < 0 || index >= products.length) {
-    alert("Буруу дугаар.");
-    return;
-  }
-
-  const product = products[index];
-
-  const name = prompt("Шинэ нэр:", product.name);
-  if (name === null) return;
-
-  const price = prompt("Шинэ үнэ:", String(product.price));
-  if (price === null) return;
-
-  const image = prompt("Шинэ зургийн URL:", product.image);
-  if (image === null) return;
-
-  const { error } = await supabase
-    .from("products")
-    .update({
-      name,
-      price: Number(price),
-      image,
-    })
-    .eq("id", Number(product.id));
-
-  if (error) {
-    alert("Бараа засахад алдаа гарлаа: " + error.message);
-    return;
-  }
-
-  alert("Бараа амжилттай засагдлаа.");
-  window.location.reload();
-}}
-  className="w-full border border-white py-3"
->
-  БАРАА ЗАСАХ
-</button>
-
-          <button
-  onClick={async () => {
-  if (products.length === 0) {
-    alert("Бараа байхгүй байна.");
-    return;
-  }
-
-  const list = products
-    .map(
-      (item, index) =>
-        `${index + 1}. ${item.name} — Үлдэгдэл: ${item.stock}`
-    )
-    .join("\n");
-
-  const choice = prompt(
-    "Үлдэгдэл засах бараагаа сонгоно уу:\n\n" +
-      list +
-      "\n\nДугаар оруулна уу:"
-  );
-
-  if (choice === null) return;
-
-  const index = Number(choice) - 1;
-
-  if (index < 0 || index >= products.length) {
-    alert("Буруу дугаар.");
-    return;
-  }
-
-  const product = products[index];
-
-  const stock = prompt(
-    "Шинэ үлдэгдэл:",
-    String(product.stock)
-  );
-
-  if (stock === null) return;
-
-  const { error } = await supabase
-    .from("products")
-    .update({
-      stock: Number(stock),
-    })
-    .eq("id", Number(product.id));
-
-  if (error) {
-    alert("Үлдэгдэл засахад алдаа гарлаа: " + error.message);
-    return;
-  }
-
-  alert("Үлдэгдэл амжилттай шинэчлэгдлээ.");
-  window.location.reload();
-}}
-  className="w-full border border-white py-3"
->
-  ҮЛДЭГДЭЛ ЗАСАХ
-</button>
+        <section className="mt-10 border border-white/20 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h2 className="text-xl font-bold">БҮТЭЭГДЭХҮҮН УДИРДАХ</h2>
+            <button type="button" onClick={resetProductForm} className="border border-white/30 px-4 py-2">
+              ШИНЭ БАРАА
+            </button>
           </div>
-        </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-[1fr_auto]">
+            <select
+              value={editingProductId ?? ""}
+              onChange={(event) => {
+                const selected = products.find((item) => String(item.id) === event.target.value);
+                if (selected) editProduct(selected);
+                else resetProductForm();
+              }}
+              className="w-full border border-white/20 bg-black p-3"
+            >
+              <option value="">Шинэ бараа үүсгэх / засах бараа сонгох</option>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>{product.name}</option>
+              ))}
+            </select>
+            {editingProductId !== null && (
+              <button type="button" onClick={() => void deleteProduct()} className="border border-red-400 px-4 py-2 text-red-300">
+                БАРАА УСТГАХ
+              </button>
+            )}
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <label className="space-y-2 text-sm text-gray-300">
+              <span>Барааны нэр</span>
+              <input value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} className="w-full border border-white/20 bg-black p-3" />
+            </label>
+            <label className="space-y-2 text-sm text-gray-300">
+              <span>Ангилал</span>
+              <select value={productForm.category} onChange={(event) => setProductForm({ ...productForm, category: event.target.value })} className="w-full border border-white/20 bg-black p-3">
+                <option value="WATCHES">ЦАГ</option>
+                <option value="CLOTHING">ХУВЦАС</option>
+                <option value="SHOES">ГУТАЛ</option>
+                <option value="ACCESSORIES">АКСЕССУАР</option>
+              </select>
+            </label>
+            <label className="space-y-2 text-sm text-gray-300">
+              <span>Үнэ (₮)</span>
+              <input type="number" min="1" value={productForm.price.replace(/[^\d]/g, "")} onChange={(event) => setProductForm({ ...productForm, price: event.target.value })} className="w-full border border-white/20 bg-black p-3" />
+            </label>
+            <label className="space-y-2 text-sm text-gray-300">
+              <span>Барааны боломж</span>
+              <select value={productForm.availability} onChange={(event) => setProductForm({ ...productForm, availability: event.target.value })} className="w-full border border-white/20 bg-black p-3">
+                <option value="IN_STOCK">In stock (Бэлэн байгаа)</option>
+                <option value="PREORDER">Preorder (Урьдчилсан захиалга)</option>
+              </select>
+            </label>
+            {productForm.availability === "IN_STOCK" ? (
+              <label className="space-y-2 text-sm text-gray-300">
+                <span>Үлдэгдэл</span>
+                <input type="number" min="0" step="1" value={productForm.stock} onChange={(event) => setProductForm({ ...productForm, stock: event.target.value })} className="w-full border border-white/20 bg-black p-3" />
+              </label>
+            ) : (
+              <p className="self-end border border-amber-300/30 p-3 text-sm text-amber-200">
+                Урьдчилсан захиалга 6–9 хоногт ирнэ. Барааны биет үлдэгдлээс хасахгүй.
+              </p>
+            )}
+            <label className="space-y-2 text-sm text-gray-300">
+              <span>Зургийн URL</span>
+              <input value={productForm.image} onChange={(event) => setProductForm({ ...productForm, image: event.target.value })} placeholder="Одоогийн URL эсвэл шинэ URL" className="w-full border border-white/20 bg-black p-3" />
+            </label>
+            <label className="space-y-2 text-sm text-gray-300">
+              <span>Зураг upload хийх (сонголтоор)</span>
+              <input type="file" accept="image/*" onChange={(event) => setProductImageFile(event.target.files?.[0] ?? null)} className="w-full border border-white/20 bg-black p-3" />
+            </label>
+            <label className="space-y-2 text-sm text-gray-300 md:col-span-2">
+              <span>Тайлбар</span>
+              <textarea value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} rows={3} className="w-full border border-white/20 bg-black p-3" />
+            </label>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button type="button" onClick={() => void saveProduct()} disabled={isSavingProduct} className="border border-white px-6 py-3 disabled:opacity-50">
+              {isSavingProduct ? "ХАДГАЛЖ БАЙНА..." : editingProductId === null ? "БАРАА НЭМЭХ" : "ӨӨРЧЛӨЛТ ХАДГАЛАХ"}
+            </button>
+            {adminMessage && <p className="self-center text-sm text-amber-200" role="status">{adminMessage}</p>}
+          </div>
+        </section>
 
    <div className="mt-6 border border-white/20 p-6">
   <h2 className="text-xl font-bold">ЗАХИАЛГУУД</h2>
@@ -697,15 +652,70 @@ if (!loggedIn) {
 <p>
   <strong>Төлбөр:</strong> {order.payment_method}
 </p>
+<p className="mt-1">
+  <strong>Төлбөрийн төлөв:</strong> {order.payment_status === "PAID" ? "Төлбөр баталгаажсан" : "Төлбөр хүлээгдэж байна"}
+</p>
+{order.inventory_issue && (
+  <p className="mt-2 border border-red-400/40 p-3 text-red-200" role="alert">
+    Төлбөр баталгаажсан боловч үлдэгдэл хүрэлцээгүй байна. Нийлүүлэгч/нөөцийг яаралтай шалгана уу.
+  </p>
+)}
+{order.has_preorder && (
+  <div className="mt-3 space-y-1">
+    <p className="text-amber-200">УРЬДЧИЛСАН ЗАХИАЛГА — 6–9 хоног</p>
+    {order.expected_arrival_at && (
+      <p className="text-sm text-gray-400">
+        Тооцоолсон хугацаа: {new Date(order.expected_arrival_at).toLocaleDateString("mn-MN")}
+      </p>
+    )}
+    {order.is_overdue &&
+      !["Хүргэгдсэн", "Цуцлагдсан"].includes(order.order_status ?? "") && (
+        <p className="font-semibold text-red-300" role="status">
+          ХУГАЦАА ХЭТРЭВ — Админ шалгах шаардлагатай
+        </p>
+      )}
+  </div>
+)}
+<label className="mt-3 flex flex-col gap-2 text-sm">
+  <span><strong>Захиалгын төлөв:</strong></span>
+  <select
+    value={order.order_status ?? "Төлбөр хүлээгдэж байна"}
+    onChange={async (event) => {
+      const orderStatus = event.target.value;
+      const response = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id, orderStatus }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setAdminMessage(result.error || "Захиалгын төлөв шинэчилж чадсангүй.");
+        return;
+      }
+      setOrders((current) => current.map((item) => item.id === order.id ? result.order : item));
+      setAdminMessage("");
+    }}
+    className="w-full border border-white/20 bg-black p-3 sm:max-w-sm"
+  >
+    {PREORDER_ORDER_STATUSES.map((status) => (
+      <option
+        key={status}
+        value={status}
+        disabled={status === "Төлбөр баталгаажсан" && order.payment_status !== "PAID"}
+      >
+        {status}
+      </option>
+    ))}
+  </select>
+</label>
 
 <div className="mt-3">
   <strong>Захиалсан бараа:</strong>
   <ul className="mt-2 space-y-2">
     {Array.isArray(order.items) &&
-      order.items.map((item: any, index: number) => (
+      order.items.map((item, index: number) => (
         <li key={`${item.id ?? item.name ?? "item"}-${index}`} className="text-gray-300">
-          {item.name ?? "Нэргүй бараа"} —{" "}
-          {Number(item.price ?? 0).toLocaleString()}₮
+          {item.name ?? "Нэргүй бараа"} — {Number(item.price ?? 0).toLocaleString()}₮ × {Number(item.quantity ?? 1)}
         </li>
       ))}
   </ul>
