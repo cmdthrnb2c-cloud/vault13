@@ -1,12 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
 
 type MetaInsight = {
   date_start?: string;
@@ -42,8 +36,28 @@ const formatInsightValue = (value?: string, fractionDigits = 0) => {
 
 export default function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 useEffect(() => {
-  setLoggedIn(sessionStorage.getItem("vault13_admin") === "true");
+  let cancelled = false;
+
+  fetch("/api/admin/auth", { cache: "no-store" })
+    .then(async (response) => {
+      const data = await response.json();
+      if (!cancelled) {
+        setLoggedIn(response.ok && data.authenticated === true);
+        setAuthLoading(false);
+      }
+    })
+    .catch(() => {
+      if (!cancelled) {
+        setLoggedIn(false);
+        setAuthLoading(false);
+      }
+    });
+
+  return () => {
+    cancelled = true;
+  };
 }, []);
 
   const [password, setPassword] = useState("");
@@ -127,27 +141,24 @@ if (!availability) return;
   return;
 }
 
-const fileExt = productImageFile.name.split(".").pop();
-const fileName = `${Date.now()}.${fileExt}`;
+const imageForm = new FormData();
+imageForm.set("file", productImageFile);
+const uploadResponse = await fetch("/api/admin/upload", {
+  method: "POST",
+  body: imageForm,
+});
+const uploadResult = await uploadResponse.json();
 
-const { error: uploadError } = await supabase.storage
-  .from("product-images")
-  .upload(fileName, productImageFile);
-
-if (uploadError) {
-  console.error("UPLOAD ERROR:", uploadError);
-  alert("Зураг upload хийхэд алдаа гарлаа:\n" + JSON.stringify(uploadError, null, 2));
+if (!uploadResponse.ok) {
+  alert(uploadResult.error || "Зураг upload хийхэд алдаа гарлаа.");
   return;
 }
 
-const { data: imageData } = supabase.storage
-  .from("product-images")
-  .getPublicUrl(fileName);
-
-const image = imageData.publicUrl;
-
-const { error } = await supabase.from("products").insert([
-  {
+const image = uploadResult.image;
+const createResponse = await fetch("/api/admin/products", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
     name,
     category,
     price: Number(price),
@@ -155,11 +166,12 @@ const { error } = await supabase.from("products").insert([
     stock: Number(stock),
     availability,
     description,
-  },
-]);
+  }),
+});
+const createResult = await createResponse.json();
 
-    if (error) {
-      alert("Бараа нэмэхэд алдаа гарлаа: " + error.message);
+    if (!createResponse.ok) {
+      alert("Бараа нэмэхэд алдаа гарлаа: " + createResult.error);
       return;
     }
 
@@ -195,13 +207,15 @@ const { error } = await supabase.from("products").insert([
 
   if (!confirm(`"${product.name}" барааг устгах уу?`)) return;
 
-  const { error } = await supabase
-    .from("products")
-    .delete()
-    .eq("id", Number(product.id));
+  const deleteResponse = await fetch("/api/admin/products", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: Number(product.id) }),
+  });
+  const deleteResult = await deleteResponse.json();
 
-  if (error) {
-    alert("Бараа устгахад алдаа гарлаа: " + error.message);
+  if (!deleteResponse.ok) {
+    alert("Бараа устгахад алдаа гарлаа: " + deleteResult.error);
     return;
   }
 
@@ -209,41 +223,35 @@ const { error } = await supabase.from("products").insert([
   window.location.reload();
 };
 useEffect(() => {
- 
-  const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("id", { ascending: true });
+  if (!loggedIn) return;
 
-    if (error) {
-      alert("Supabase алдаа: " + error.message);
-      console.error("Products error:", error);
+  const fetchProducts = async () => {
+    const response = await fetch("/api/admin/products", { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok) {
+      console.error("Products error:", result.error);
       return;
     }
-
-    setProducts(data ?? []);
+    setProducts(result.products ?? []);
   };
 
-  fetchProducts();
-}, []);
+  void fetchProducts();
+}, [loggedIn]);
 useEffect(() => {
-const fetchOrders = async () => {
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .order("created_at", { ascending: false });
+  if (!loggedIn) return;
 
-  if (error) {
-    console.error("Orders error:", error);
-    return;
-  }
+  const fetchOrders = async () => {
+    const response = await fetch("/api/admin/orders", { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok) {
+      console.error("Orders error:", result.error);
+      return;
+    }
+    setOrders(result.orders ?? []);
+  };
 
-  setOrders(data || []);
-};
-
-fetchOrders();
-}, []);
+  void fetchOrders();
+}, [loggedIn]);
 useEffect(() => {
   if (!loggedIn) return;
 
@@ -315,6 +323,14 @@ const metaPerformanceSummary = latestMetaInsight
     0
   );
 
+if (authLoading) {
+  return (
+    <main className="min-h-screen bg-black text-white p-8">
+      <p role="status">Нэвтрэлтийг шалгаж байна...</p>
+    </main>
+  );
+}
+
 if (!loggedIn) {
   return (
     <main className="min-h-screen bg-black text-white p-8">
@@ -322,30 +338,6 @@ if (!loggedIn) {
         <h1 className="text-3xl font-bold mb-6">
           VAULT 13 ADMIN
         </h1>
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-    <div className="border border-white/20 p-6">
-      <p className="text-gray-400">ӨНӨӨДРИЙН БОРЛУУЛАЛТ</p>
-      <p className="text-3xl font-bold mt-3">
-        {todayRevenue.toLocaleString("en-US")}₮
-      </p>
-    </div>
-
-    <div className="border border-white/20 p-6">
-      <p className="text-gray-400">ӨНӨӨДРИЙН ЗАХИАЛГА</p>
-      <p className="text-3xl font-bold mt-3">
-        {todayOrders.length}
-      </p>
-    </div>
-
-    <div className="border border-white/20 p-6">
-      <p className="text-gray-400">НИЙТ БОРЛУУЛАЛТ</p>
-      <p className="text-3xl font-bold mt-3">
-        {totalRevenue.toLocaleString("en-US")}₮
-      </p>
-    </div>
-  </div>
-
-
         <p className="text-gray-400 mb-4">
           ADMIN PANEL
         </p>
@@ -359,12 +351,25 @@ if (!loggedIn) {
         />
 
         <button
-          onClick={() => {
-            sessionStorage.setItem("vault13_admin", "true");
-            if (password === "04f0a1034451A?") {
-              setLoggedIn(true);
-            } else {
-              alert("Нууц үг буруу");
+          onClick={async () => {
+            try {
+              const response = await fetch("/api/admin/auth", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password }),
+              });
+              const data = await response.json();
+
+              if (!response.ok || !data.authenticated) {
+                alert(data.error || "Нэвтрэхэд алдаа гарлаа.");
+                return;
+              }
+
+              const verification = await fetch("/api/admin/auth", { cache: "no-store" });
+              const verified = await verification.json();
+              setLoggedIn(verification.ok && verified.authenticated === true);
+            } catch {
+              alert("Сервертэй холбогдож чадсангүй.");
             }
           }}
           className="w-full border border-white py-4"
@@ -571,17 +576,18 @@ if (!loggedIn) {
   const image = prompt("Шинэ зургийн URL:", product.image);
   if (image === null) return;
 
-  const { error } = await supabase
-    .from("products")
-    .update({
-      name,
-      price: Number(price),
-      image,
-    })
-    .eq("id", Number(product.id));
+  const response = await fetch("/api/admin/products", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: Number(product.id),
+      updates: { name, price: Number(price), image },
+    }),
+  });
+  const result = await response.json();
 
-  if (error) {
-    alert("Бараа засахад алдаа гарлаа: " + error.message);
+  if (!response.ok) {
+    alert("Бараа засахад алдаа гарлаа: " + result.error);
     return;
   }
 
@@ -631,15 +637,18 @@ if (!loggedIn) {
 
   if (stock === null) return;
 
-  const { error } = await supabase
-    .from("products")
-    .update({
-      stock: Number(stock),
-    })
-    .eq("id", Number(product.id));
+  const response = await fetch("/api/admin/products", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: Number(product.id),
+      updates: { stock: Number(stock) },
+    }),
+  });
+  const result = await response.json();
 
-  if (error) {
-    alert("Үлдэгдэл засахад алдаа гарлаа: " + error.message);
+  if (!response.ok) {
+    alert("Үлдэгдэл засахад алдаа гарлаа: " + result.error);
     return;
   }
 
