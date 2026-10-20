@@ -39,8 +39,12 @@ export async function GET(request: Request) {
 
     if (error) throw error;
     return NextResponse.json({ orders: (data ?? []).map(withOverdueFlag) });
-  } catch (error) {
-    const details = error instanceof Error ? error.message : String(error);
+    } catch (error) {
+    const details =
+      error instanceof Error ? error.message : JSON.stringify(error);
+
+    console.error("Admin orders GET failed:", error);
+
     return NextResponse.json(
       { error: "Захиалга ачаалж чадсангүй.", details },
       { status: 500 }
