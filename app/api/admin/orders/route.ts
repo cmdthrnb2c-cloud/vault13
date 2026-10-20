@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ orders: (data ?? []).map(withOverdueFlag) });
     } catch (error) {
     const details =
-      error instanceof Error ? error.message : JSON.stringify(error);
+      error instanceof Error ? error.message : JSON.stringify(error, Object.getOwnPropertyNames(error));
 
     console.error("Admin orders GET failed:", error);
 
