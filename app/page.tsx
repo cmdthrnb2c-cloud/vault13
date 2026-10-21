@@ -557,7 +557,7 @@ return (
       className="group cursor-pointer"
       onClick={() => setSelectedProduct(product)}
     >
-    <div className="relative aspect-square bg-zinc-900 overflow-hidden rounded-2xl border border-white/30">
+    <div className="relative aspect-square bg-zinc-900 overflow-hidden rounded-2xl border border-white/20">
         <img
         
   src={product.image}
@@ -576,34 +576,18 @@ return (
          
       </div>
 
-      <div className="pt-3 sm:pt-5">
+      <div className="pt-2 sm:pt-5">
         <p className="text-[9px] tracking-wide text-gray-500 sm:text-xs sm:tracking-widest">
           {product.category}
         </p>
 
-        <h3 className="mt-2 line-clamp-2 break-words text-sm font-semibold sm:text-lg">
+        <h3 className="mt-1.5 line-clamp-2 break-words text-[13px] font-medium leading-snug tracking-tight sm:mt-2 sm:text-lg sm:font-semibold">
           {product.name}
         </h3>
 
-        <p className="mt-2 text-base font-semibold sm:text-lg">{formatProductPrice(product.price)}</p>
+        <p className="mt-1.5 text-[15px] font-medium tracking-tight sm:mt-2 sm:text-lg sm:font-semibold">{formatProductPrice(product.price)}</p>
 
-<p className="mt-2">
-  {normalizeAvailability(product.availability) === "PREORDER" ? (
-    <span className={`${availabilityBadgeClass} bg-[#F5B82E] text-black`}>
-      УРЬДЧИЛСАН ЗАХИАЛГА
-    </span>
-  ) : Number(product.stock) > 0 ? (
-    <span className="inline-flex items-center gap-2">
-      <span className="h-2 w-2 shrink-0 rounded-full bg-[#16B84E]" aria-hidden="true" />
-      <span className={`${availabilityBadgeClass} bg-[#16B84E] text-white`}>БЭЛЭН</span>
-      <span className="border-l border-white/20 pl-2 text-xs text-gray-400">
-        ҮЛДЭГДЭЛ: {product.stock}
-      </span>
-    </span>
-  ) : (
-    <span className={`${availabilityBadgeClass} bg-[#6B6B6B] text-white`}>ДУУССАН</span>
-  )}
-</p>
+
 
 {normalizeAvailability(product.availability) === "PREORDER" || Number(product.stock) > 0 ? (
   <div className="mt-3 flex w-full flex-col gap-2 sm:mt-5 sm:flex-row">
@@ -712,11 +696,24 @@ return (
     </>
   )}
   {normalizeAvailability(selectedProduct.availability) === "PREORDER" ? (
-    <p className="mt-3 text-amber-200">УРЬДЧИЛСАН ЗАХИАЛГА · 6–9 хоног</p>
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <span className={`${availabilityBadgeClass} bg-[#F5B82E] text-black`}>
+        УРЬДЧИЛСАН ЗАХИАЛГА
+      </span>
+      <span className="text-sm text-gray-400">6–9 хоног</span>
+    </div>
   ) : Number(selectedProduct.stock) > 0 ? (
-    <p className="mt-3 text-emerald-300">БЭЛЭН БАЙГАА</p>
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <span className="h-2.5 w-2.5 rounded-full bg-[#16B84E]" aria-hidden="true" />
+      <span className={`${availabilityBadgeClass} bg-[#16B84E] text-white`}>БЭЛЭН</span>
+      <span className="border-l border-white/20 pl-3 text-sm text-gray-400">
+        ҮЛДЭГДЭЛ: {selectedProduct.stock}
+      </span>
+    </div>
   ) : (
-    <p className="mt-3 text-gray-500">ДУУССАН</p>
+    <div className="mt-4">
+      <span className={`${availabilityBadgeClass} bg-[#6B6B6B] text-white`}>ДУУССАН</span>
+    </div>
   )}
 </div>
 
