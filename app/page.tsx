@@ -597,7 +597,7 @@ return (
         e.stopPropagation();
         addToCart(product);
       }}
-      className="box-border h-[46px] min-w-0 flex-1 rounded-[8px] border border-white/30 bg-transparent px-1 text-center text-[10px] font-semibold leading-tight text-white transition-colors duration-200 hover:bg-white/10 sm:text-xs"
+      className="box-border min-h-[44px] w-full min-w-0 flex-1 rounded-[8px] border border-white/30 bg-transparent px-2 py-2 text-center text-[11px] font-semibold leading-snug text-white transition-colors duration-200 hover:bg-white/10 sm:h-[46px] sm:py-0 sm:text-xs"
     >
       САГСАНД НЭМЭХ
     </button>
@@ -610,7 +610,7 @@ return (
           setCheckoutOpen(true);
         }
       }}
-      className="box-border h-[46px] min-w-0 flex-1 rounded-[8px] bg-white px-1 text-center text-[10px] font-semibold leading-tight text-black transition-colors duration-200 hover:bg-gray-200 sm:text-xs"
+      className="box-border min-h-[44px] w-full min-w-0 flex-1 rounded-[8px] bg-white px-2 py-2 text-center text-[11px] font-semibold leading-snug text-black transition-colors duration-200 hover:bg-gray-200 sm:h-[46px] sm:py-0 sm:text-xs"
     >
       ХУДАЛДАН АВАХ
     </button>
