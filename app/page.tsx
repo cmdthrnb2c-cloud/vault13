@@ -478,13 +478,13 @@ return (
       </section>
 
       {/* PRODUCTS */}
-      <section id="shop" className="mx-auto max-w-7xl px-6 py-24">
-        <div className="mb-12 flex items-end justify-between">
+      <section id="shop" className="mx-auto max-w-7xl px-3 py-10 sm:px-6 sm:py-24">
+        <div className="mb-6 flex items-end justify-between sm:mb-12">
           <div>
             <p className="mb-3 text-xs tracking-[0.4em] text-gray-500">
               SELECTED COLLECTION
             </p>
-            <h2 className="text-4xl font-bold">ШИНЭ БҮТЭЭГДЭХҮҮН</h2>
+            <h2 className="text-2xl font-bold sm:text-4xl">ШИНЭ БҮТЭЭГДЭХҮҮН</h2>
           </div>
 
           <span className="hidden text-sm text-gray-500 md:block">
@@ -544,7 +544,7 @@ return (
 
       {/* FOOTER */}{/* PRODUCTS */}
 {cartFeedback && <p className="mb-6 text-sm text-amber-200" role="status">{cartFeedback}</p>}
-<div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+<div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-8 lg:grid-cols-3">
   {products
   .filter((product) =>
     selectedCategory === "ALL" ||
@@ -576,16 +576,16 @@ return (
          
       </div>
 
-      <div className="pt-5">
-        <p className="text-xs tracking-widest text-gray-500">
+      <div className="pt-3 sm:pt-5">
+        <p className="text-[9px] tracking-wide text-gray-500 sm:text-xs sm:tracking-widest">
           {product.category}
         </p>
 
-        <h3 className="text-lg mt-2 font-semibold">
+        <h3 className="mt-2 line-clamp-2 break-words text-sm font-semibold sm:text-lg">
           {product.name}
         </h3>
 
-        <p className="mt-2 text-lg font-semibold">{formatProductPrice(product.price)}</p>
+        <p className="mt-2 text-base font-semibold sm:text-lg">{formatProductPrice(product.price)}</p>
 
 <p className="mt-2">
   {normalizeAvailability(product.availability) === "PREORDER" ? (
@@ -606,7 +606,7 @@ return (
 </p>
 
 {normalizeAvailability(product.availability) === "PREORDER" || Number(product.stock) > 0 ? (
-  <div className="mt-5 flex w-full gap-2">
+  <div className="mt-3 flex w-full flex-col gap-2 sm:mt-5 sm:flex-row">
     <button
       type="button"
       onClick={(e) => {
