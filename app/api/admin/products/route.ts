@@ -50,13 +50,24 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .order("id", { ascending: true });
+    const pageSize = 1000;
+    const products = [];
 
-    if (error) throw error;
-    return NextResponse.json({ products: data ?? [] });
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (error) throw error;
+
+      const page = data ?? [];
+      products.push(...page);
+      if (page.length < pageSize) break;
+    }
+
+    return NextResponse.json({ products });
    } catch (error) {
   const details = error instanceof Error ? error.message : String(error);
   return NextResponse.json(
