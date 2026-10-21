@@ -256,8 +256,8 @@ useEffect(() => {
             setQpayUrls(savedPayment.urls);
           }
           setCheckoutStep(2);
-          setCheckoutOpen(true);
-          setPaymentFeedback("Өмнөх захиалгын төлбөрийг үргэлжлүүлнэ үү.");
+          setCheckoutOpen(false);
+          setPaymentFeedback("Өмнөх QPay нэхэмжлэл тусдаа хүчинтэй хэвээр байж болзошгүй.");
         }
       } catch {
         localStorage.removeItem("vault13-pending-payment");
@@ -290,13 +290,22 @@ useEffect(() => {
   }
 }, [cartItems, cartReady, qpayCheckoutToken, qpayInvoiceId, qpayOrderId, qpayOrderTotal, qpayUrls]);
 
+const resetPendingQpayForCartChange = () => {
+  if (qpayOrderId !== null || qpayInvoiceId) {
+    setQpayOrderId(null);
+    setQpayOrderTotal(null);
+    setQpayCheckoutToken("");
+    setQpayInvoiceId("");
+    setQpayUrls([]);
+    setPaymentFeedback(
+      "Сагс өөрчлөгдлөө. Өмнөх QPay нэхэмжлэл тусдаа хүчинтэй хэвээр байж болзошгүй. Шинэ сагсанд шинэ нэхэмжлэл үүсгэнэ үү."
+    );
+  }
+};
+
 const addToCart = (product: Product, quantity = 1) => {
   if (!Number.isSafeInteger(Number(product.id)) || Number(product.id) <= 0) {
     setCartFeedback("Барааны мэдээлэл серверээс баталгаажаагүй байна. Дахин ачаалаад үзнэ үү.");
-    return false;
-  }
-  if (qpayOrderId !== null) {
-    setCartFeedback("Төлбөр хүлээгдэж буй захиалгыг дуусгахаас өмнө сагс өөрчлөх боломжгүй.");
     return false;
   }
   const key = String(product.id ?? product.name);
@@ -312,6 +321,7 @@ const addToCart = (product: Product, quantity = 1) => {
     return false;
   }
 
+  resetPendingQpayForCartChange();
   setCartItems((current) => {
     const existing = current.find((item) => String(item.id ?? item.name) === key);
     return existing
@@ -335,11 +345,8 @@ const addToCart = (product: Product, quantity = 1) => {
 };
 
 const changeCartQuantity = (item: CartItem, quantity: number) => {
-  if (qpayOrderId !== null) {
-    setCartFeedback("Төлбөр хүлээгдэж буй захиалгыг дуусгахаас өмнө сагс өөрчлөх боломжгүй.");
-    return;
-  }
   if (quantity <= 0) {
+    resetPendingQpayForCartChange();
     setCartItems((current) =>
       current.filter((line) => String(line.id ?? line.name) !== String(item.id ?? item.name))
     );
@@ -351,6 +358,9 @@ const changeCartQuantity = (item: CartItem, quantity: number) => {
   ) {
     setCartFeedback(`"${item.name}" барааны үлдэгдэл ${item.stock} байна.`);
     return;
+  }
+  if (quantity !== item.quantity) {
+    resetPendingQpayForCartChange();
   }
   setCartItems((current) =>
     current.map((line) =>
@@ -804,12 +814,11 @@ return (
               <p className="mt-1 text-xs text-amber-200">УРЬДЧИЛСАН ЗАХИАЛГА · 6–9 хоног</p>
             )}
             <div className="mt-2 flex items-center gap-3">
-                  <button type="button" disabled={qpayOrderId !== null} onClick={() => changeCartQuantity(item, item.quantity - 1)} aria-label={`${item.name} тоо хасах`} className="h-8 w-8 border border-white/30 disabled:opacity-40">−</button>
+                  <button type="button" onClick={() => changeCartQuantity(item, item.quantity - 1)} aria-label={`${item.name} тоо хасах`} className="h-8 w-8 border border-white/30 disabled:opacity-40">−</button>
               <span>{item.quantity}</span>
-              <button type="button" disabled={qpayOrderId !== null} onClick={() => changeCartQuantity(item, item.quantity + 1)} aria-label={`${item.name} тоо нэмэх`} className="h-8 w-8 border border-white/30 disabled:opacity-40">+</button>
+              <button type="button" onClick={() => changeCartQuantity(item, item.quantity + 1)} aria-label={`${item.name} тоо нэмэх`} className="h-8 w-8 border border-white/30 disabled:opacity-40">+</button>
               <button
                 type="button"
-                disabled={qpayOrderId !== null}
                 onClick={() => changeCartQuantity(item, 0)}
                 className="border border-red-400/60 px-2 py-1 text-xs font-semibold text-red-300 hover:border-red-400 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
