@@ -82,7 +82,19 @@ function restoreCart(value: unknown): CartItem[] | null {
 type QPayUrl = {
   name: string;
   link: string;
-};const initialProducts = [
+};
+
+const availabilityBadgeClass =
+  "inline-flex h-7 items-center rounded-full px-3 text-xs font-bold leading-none tracking-wide";
+
+const formatCurrency = (amount: number) => `${amount.toLocaleString("en-US")}₮`;
+
+const formatProductPrice = (price: string | number) => {
+  const amount = parsePrice(price);
+  return amount === null ? String(price) : formatCurrency(amount);
+};
+
+const initialProducts = [
   {
     name: "ROLEX GMT-MASTER II PEPSI",
     category: "WATCHES",
@@ -573,31 +585,52 @@ return (
           {product.name}
         </h3>
 
+        <p className="mt-2 text-lg font-semibold">{formatProductPrice(product.price)}</p>
+
 <p className="mt-2">
   {normalizeAvailability(product.availability) === "PREORDER" ? (
-    <span className="inline-flex border border-amber-300/50 px-2 py-1 text-xs tracking-wide text-amber-200">
+    <span className={`${availabilityBadgeClass} bg-[#F5B82E] text-black`}>
       УРЬДЧИЛСАН ЗАХИАЛГА
     </span>
   ) : Number(product.stock) > 0 ? (
-    <span className="inline-flex border border-emerald-400/50 px-2 py-1 text-xs tracking-wide text-emerald-300">
-      БЭЛЭН БАЙГАА · ҮЛДЭГДЭЛ: {product.stock}
+    <span className="inline-flex items-center gap-2">
+      <span className="h-2 w-2 shrink-0 rounded-full bg-[#16B84E]" aria-hidden="true" />
+      <span className={`${availabilityBadgeClass} bg-[#16B84E] text-white`}>БЭЛЭН</span>
+      <span className="border-l border-white/20 pl-2 text-xs text-gray-400">
+        ҮЛДЭГДЭЛ: {product.stock}
+      </span>
     </span>
   ) : (
-    <span className="text-sm text-gray-500">ДУУССАН</span>
+    <span className={`${availabilityBadgeClass} bg-[#6B6B6B] text-white`}>ДУУССАН</span>
   )}
 </p>
 
 {normalizeAvailability(product.availability) === "PREORDER" || Number(product.stock) > 0 ? (
-  <button
-onClick={(e) => {
-  e.stopPropagation();
-  addToCart(product);
-}}
-
-    className="w-full border border-white mt-5 py-3"
-  >
-    Сагсанд нэмэх
-  </button>
+  <div className="mt-5 flex w-full gap-2">
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        addToCart(product);
+      }}
+      className="box-border h-[46px] min-w-0 flex-1 rounded-[8px] border border-white/30 bg-transparent px-1 text-center text-[10px] font-semibold leading-tight text-white transition-colors duration-200 hover:bg-white/10 sm:text-xs"
+    >
+      САГСАНД НЭМЭХ
+    </button>
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (addToCart(product)) {
+          setCheckoutStep(1);
+          setCheckoutOpen(true);
+        }
+      }}
+      className="box-border h-[46px] min-w-0 flex-1 rounded-[8px] bg-white px-1 text-center text-[10px] font-semibold leading-tight text-black transition-colors duration-200 hover:bg-gray-200 sm:text-xs"
+    >
+      ХУДАЛДАН АВАХ
+    </button>
+  </div>
 ) : (
   <button
     disabled
@@ -664,8 +697,8 @@ onClick={(e) => {
       <h2 className="text-2xl font-bold mt-2">
   {selectedProduct.name}
 </h2>
-      <p className="text-xl mt-4">
-        {selectedProduct.price}
+      <p className="text-xl mt-4 font-semibold">
+        {formatProductPrice(selectedProduct.price)}
       </p>
 
    <div className="mt-6 text-sm text-gray-400 leading-7">
@@ -687,21 +720,45 @@ onClick={(e) => {
   )}
 </div>
 
-      <button
-onClick={() => {
-  const added = addToCart(selectedProduct);
-  if (added) {
-    setSelectedProduct(null);
-  }
-}}
-disabled={
-  normalizeAvailability(selectedProduct.availability) !== "PREORDER" &&
-  Number(selectedProduct.stock) <= 0
-}
-className="w-full bg-white text-black mt-6 py-4 font-bold"
-      >
-САГСАНД НЭМЭХ
-      </button>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            addToCart(selectedProduct);
+          }}
+          disabled={
+            normalizeAvailability(selectedProduct.availability) !== "PREORDER" &&
+            Number(selectedProduct.stock) <= 0
+          }
+          className="w-full flex-1 border border-white/40 py-4 font-bold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          САГСАНД НЭМЭХ
+        </button>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            if (addToCart(selectedProduct)) {
+              setSelectedProduct(null);
+              setCheckoutStep(1);
+              setCheckoutOpen(true);
+            }
+          }}
+          disabled={
+            normalizeAvailability(selectedProduct.availability) !== "PREORDER" &&
+            Number(selectedProduct.stock) <= 0
+          }
+          className="w-full flex-1 bg-white py-4 font-bold text-black hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ХУДАЛДАН АВАХ
+        </button>
+      </div>
+      {cartFeedback && (
+        <p className="mt-3 text-sm text-amber-200" role="status">
+          {cartFeedback}
+        </p>
+      )}
     </div>
   </div>
 )}
@@ -745,7 +802,7 @@ className="w-full bg-white text-black mt-6 py-4 font-bold"
 
           <div className="min-w-0 flex-1">
             <p className="font-semibold">{item.name}</p>
-            <p className="text-gray-400 mt-1">{(parsePrice(item.price) ?? 0).toLocaleString()}₮</p>
+            <p className="text-gray-400 mt-1">{formatProductPrice(item.price)}</p>
             {normalizeAvailability(item.availability) === "PREORDER" && (
               <p className="mt-1 text-xs text-amber-200">УРЬДЧИЛСАН ЗАХИАЛГА · 6–9 хоног</p>
             )}
@@ -753,7 +810,15 @@ className="w-full bg-white text-black mt-6 py-4 font-bold"
                   <button type="button" disabled={qpayOrderId !== null} onClick={() => changeCartQuantity(item, item.quantity - 1)} aria-label={`${item.name} тоо хасах`} className="h-8 w-8 border border-white/30 disabled:opacity-40">−</button>
               <span>{item.quantity}</span>
               <button type="button" disabled={qpayOrderId !== null} onClick={() => changeCartQuantity(item, item.quantity + 1)} aria-label={`${item.name} тоо нэмэх`} className="h-8 w-8 border border-white/30 disabled:opacity-40">+</button>
-              <span className="ml-auto font-semibold">{((parsePrice(item.price) ?? 0) * item.quantity).toLocaleString()}₮</span>
+              <button
+                type="button"
+                disabled={qpayOrderId !== null}
+                onClick={() => changeCartQuantity(item, 0)}
+                className="border border-red-400/60 px-2 py-1 text-xs font-semibold text-red-300 hover:border-red-400 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                УСТГАХ
+              </button>
+              <span className="ml-auto font-semibold">{formatCurrency((parsePrice(item.price) ?? 0) * item.quantity)}</span>
             </div>
           </div>
         </div>
@@ -765,7 +830,7 @@ className="w-full bg-white text-black mt-6 py-4 font-bold"
   <div className="flex justify-between font-bold">
     <span>НИЙТ</span>
  <span>
-  {cartTotal.toLocaleString()}₮
+  {formatCurrency(cartTotal)}
     </span>
   </div>
 </div>
@@ -860,7 +925,7 @@ className="w-full bg-white text-black mt-6 py-4 font-bold"
       Урьдчилсан захиалга 100% урьдчилгаа төлбөртэй. Ирэх хугацаа: 6–9 хоног.
     </p>
   )}
-  <p className="mt-3 text-right font-semibold">Нийт: {(qpayOrderTotal ?? cartTotal).toLocaleString()}₮</p>
+  <p className="mt-3 text-right font-semibold">Нийт: {formatCurrency(qpayOrderTotal ?? cartTotal)}</p>
   <p className="text-sm text-gray-400 mt-6">
     Төлбөрийн хэлбэр
   </p>
