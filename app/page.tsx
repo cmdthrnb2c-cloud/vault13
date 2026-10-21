@@ -257,7 +257,6 @@ useEffect(() => {
           }
           setCheckoutStep(2);
           setCheckoutOpen(false);
-          setPaymentFeedback("Өмнөх QPay нэхэмжлэл тусдаа хүчинтэй хэвээр байж болзошгүй.");
         }
       } catch {
         localStorage.removeItem("vault13-pending-payment");
@@ -297,9 +296,6 @@ const resetPendingQpayForCartChange = () => {
     setQpayCheckoutToken("");
     setQpayInvoiceId("");
     setQpayUrls([]);
-    setPaymentFeedback(
-      "Сагс өөрчлөгдлөө. Өмнөх QPay нэхэмжлэл тусдаа хүчинтэй хэвээр байж болзошгүй. Шинэ сагсанд шинэ нэхэмжлэл үүсгэнэ үү."
-    );
   }
 };
 
@@ -860,16 +856,16 @@ return (
   </div>
 )}{checkoutOpen && (
   <div
-    className="fixed inset-0 z-[110] bg-black/80 flex items-center justify-center p-4"
+    className="fixed inset-0 z-[110] bg-black/80 flex items-start justify-center overflow-y-auto overscroll-contain p-2 sm:items-center sm:p-4"
     onClick={() => setCheckoutOpen(false)}
   >
     <div
-      className="w-full max-w-md bg-zinc-950 border border-white/20 p-6"
+      className="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto overscroll-contain bg-zinc-950 border border-white/20 p-4 sm:max-h-[90dvh] sm:p-6"
       onClick={(e) => e.stopPropagation()}
     >
       <button
         onClick={() => setCheckoutOpen(false)}
-        className="float-right text-2xl"
+        className="sticky top-0 z-10 float-right bg-zinc-950 px-2 text-2xl"
       >
         ×
       </button>
