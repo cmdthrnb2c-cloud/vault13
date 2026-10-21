@@ -575,15 +575,15 @@ return (
 
 <p className="mt-2">
   {normalizeAvailability(product.availability) === "PREORDER" ? (
-    <span className="inline-flex border border-amber-300/50 px-2 py-1 text-xs tracking-wide text-amber-200">
+    <span className="inline-flex bg-[#F5B82E] px-1.5 py-0.5 text-[10px] leading-none tracking-wide text-black">
       УРЬДЧИЛСАН ЗАХИАЛГА
     </span>
   ) : Number(product.stock) > 0 ? (
-    <span className="inline-flex border border-emerald-400/50 px-2 py-1 text-xs tracking-wide text-emerald-300">
+    <span className="inline-flex bg-[#00C853] px-1.5 py-0.5 text-[10px] leading-none tracking-wide text-white">
       БЭЛЭН БАЙГАА · ҮЛДЭГДЭЛ: {product.stock}
     </span>
   ) : (
-    <span className="text-sm text-gray-500">ДУУССАН</span>
+    <span className="inline-flex bg-[#6B6B6B] px-1.5 py-0.5 text-[10px] leading-none tracking-wide text-white">ДУУССАН</span>
   )}
 </p>
 
