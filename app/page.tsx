@@ -82,7 +82,12 @@ function restoreCart(value: unknown): CartItem[] | null {
 type QPayUrl = {
   name: string;
   link: string;
-};const initialProducts = [
+};
+
+const availabilityBadgeClass =
+  "inline-flex h-7 items-center rounded-full px-3 text-xs font-bold leading-none tracking-wide";
+
+const initialProducts = [
   {
     name: "ROLEX GMT-MASTER II PEPSI",
     category: "WATCHES",
@@ -575,31 +580,48 @@ return (
 
 <p className="mt-2">
   {normalizeAvailability(product.availability) === "PREORDER" ? (
-    <span className="inline-flex bg-[#F5B82E] px-1.5 py-0.5 text-[10px] leading-none tracking-wide text-black">
+    <span className={`${availabilityBadgeClass} bg-[#F5B82E] text-black`}>
       УРЬДЧИЛСАН ЗАХИАЛГА
     </span>
   ) : Number(product.stock) > 0 ? (
-    <span className="inline-flex bg-[#00C853] px-1.5 py-0.5 text-[10px] leading-none tracking-wide text-white">
-      БЭЛЭН БАЙГАА · ҮЛДЭГДЭЛ: {product.stock}
+    <span className="inline-flex items-center gap-2">
+      <span className="h-2 w-2 shrink-0 rounded-full bg-[#16B84E]" aria-hidden="true" />
+      <span className={`${availabilityBadgeClass} bg-[#16B84E] text-white`}>БЭЛЭН</span>
+      <span className="border-l border-white/20 pl-2 text-xs text-gray-400">
+        ҮЛДЭГДЭЛ: {product.stock}
+      </span>
     </span>
   ) : (
-    <span className="inline-flex bg-[#6B6B6B] px-1.5 py-0.5 text-[10px] leading-none tracking-wide text-white">ДУУССАН</span>
+    <span className={`${availabilityBadgeClass} bg-[#6B6B6B] text-white`}>ДУУССАН</span>
   )}
 </p>
 
 {normalizeAvailability(product.availability) === "PREORDER" || Number(product.stock) > 0 ? (
-  <button
-onClick={(e) => {
-  e.stopPropagation();
-  if (addToCart(product)) {
-    setCartOpen(true);
-  }
-}}
-
-    className="w-full border border-white mt-5 py-3"
-  >
-    Сагсанд нэмэх
-  </button>
+  <div className="mt-5 flex w-full gap-2">
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        if (addToCart(product)) {
+          setCartOpen(true);
+        }
+      }}
+      className="box-border h-[46px] min-w-0 flex-1 rounded-[8px] border border-white/30 bg-transparent px-1 text-center text-[10px] font-semibold leading-tight text-white transition-colors duration-200 hover:bg-white/10 sm:text-xs"
+    >
+      САГСАНД НЭМЭХ
+    </button>
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        if (addToCart(product)) {
+          setCheckoutStep(1);
+          setCheckoutOpen(true);
+        }
+      }}
+      className="box-border h-[46px] min-w-0 flex-1 rounded-[8px] bg-white px-1 text-center text-[10px] font-semibold leading-tight text-black transition-colors duration-200 hover:bg-gray-200 sm:text-xs"
+    >
+      ХУДАЛДАН АВАХ
+    </button>
+  </div>
 ) : (
   <button
     disabled
@@ -681,11 +703,24 @@ onClick={(e) => {
     </>
   )}
   {normalizeAvailability(selectedProduct.availability) === "PREORDER" ? (
-    <p className="mt-3 text-amber-200">УРЬДЧИЛСАН ЗАХИАЛГА · 6–9 хоног</p>
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <span className={`${availabilityBadgeClass} bg-[#F5B82E] text-black`}>
+        УРЬДЧИЛСАН ЗАХИАЛГА
+      </span>
+      <span className="text-sm text-gray-400">6–9 хоног</span>
+    </div>
   ) : Number(selectedProduct.stock) > 0 ? (
-    <p className="mt-3 text-emerald-300">БЭЛЭН БАЙГАА</p>
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <span className="h-2 w-2 shrink-0 rounded-full bg-[#16B84E]" aria-hidden="true" />
+      <span className={`${availabilityBadgeClass} bg-[#16B84E] text-white`}>БЭЛЭН</span>
+      <span className="border-l border-white/20 pl-2 text-xs text-gray-400">
+        ҮЛДЭГДЭЛ: {selectedProduct.stock}
+      </span>
+    </div>
   ) : (
-    <p className="mt-3 text-gray-500">ДУУССАН</p>
+    <p className="mt-3">
+      <span className={`${availabilityBadgeClass} bg-[#6B6B6B] text-white`}>ДУУССАН</span>
+    </p>
   )}
 </div>
 
