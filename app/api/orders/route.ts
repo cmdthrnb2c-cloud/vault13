@@ -146,7 +146,23 @@ export async function POST(request: Request) {
       { orderId: order.id, total: order.total, items, checkoutToken },
       { status: 201 }
     );
-  } catch {
+  } catch (error) {
+    console.error("[orders] Захиалга үүсгэхэд алдаа гарлаа:", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      code:
+        typeof error === "object" && error !== null && "code" in error
+          ? String(error.code)
+          : undefined,
+      details:
+        typeof error === "object" && error !== null && "details" in error
+          ? String(error.details)
+          : undefined,
+      hint:
+        typeof error === "object" && error !== null && "hint" in error
+          ? String(error.hint)
+          : undefined,
+    });
+
     return NextResponse.json(
       { error: "Захиалга үүсгэж чадсангүй. Өгөгдлийн сангийн тохиргоог шалгана уу." },
       { status: 500 }
