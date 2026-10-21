@@ -692,7 +692,6 @@ onClick={() => {
   const added = addToCart(selectedProduct);
   if (added) {
     setSelectedProduct(null);
-    setCartOpen(true);
   }
 }}
 disabled={
