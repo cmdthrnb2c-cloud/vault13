@@ -1,100 +1,23 @@
 "use client";
-
+import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { normalizeAvailability, parsePrice } from "@/lib/commerce";
-
-declare global {
-  interface Window {
-    fbq?: (...args: unknown[]) => void;
-  }
-}
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const supabase = supabaseUrl && supabasePublishableKey
-  ? createClient(supabaseUrl, supabasePublishableKey)
-  : null;
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+);
 type Product = {
-  id?: number | string;
   name: string;
   category: string;
-  price: string | number;
+  price: string;
   stock: number;
   image: string;
-  availability?: string | null;
-  description?: string | null;
 };
-
-type CartItem = Product & {
-  quantity: number;
-};
-
-function restoreCart(value: unknown): CartItem[] | null {
-  if (!Array.isArray(value)) return null;
-  const restored: CartItem[] = [];
-
-  for (const entry of value) {
-    if (
-      !entry ||
-      typeof entry !== "object" ||
-      !("name" in entry) ||
-      typeof entry.name !== "string" ||
-      !("category" in entry) ||
-      typeof entry.category !== "string" ||
-      !("price" in entry) ||
-      (typeof entry.price !== "string" && typeof entry.price !== "number") ||
-      !("image" in entry) ||
-      typeof entry.image !== "string"
-    ) {
-      return null;
-    }
-
-    const quantity = "quantity" in entry ? Number(entry.quantity) : 1;
-    if (!Number.isSafeInteger(quantity) || quantity <= 0) return null;
-    const product: Product = {
-      id: "id" in entry && (typeof entry.id === "string" || typeof entry.id === "number")
-        ? entry.id
-        : undefined,
-      name: entry.name,
-      category: entry.category,
-      price: entry.price,
-      image: entry.image,
-      stock: "stock" in entry && Number.isSafeInteger(Number(entry.stock))
-        ? Number(entry.stock)
-        : 0,
-      availability: "availability" in entry && typeof entry.availability === "string"
-        ? entry.availability
-        : undefined,
-      description: "description" in entry && typeof entry.description === "string"
-        ? entry.description
-        : undefined,
-    };
-    const key = String(product.id ?? product.name);
-    const existing = restored.find((item) => String(item.id ?? item.name) === key);
-    if (existing) existing.quantity += quantity;
-    else restored.push({ ...product, quantity });
-  }
-
-  return restored;
-}
 
 type QPayUrl = {
   name: string;
   link: string;
-};
-
-const availabilityBadgeClass =
-  "inline-flex h-7 items-center rounded-full px-3 text-xs font-bold leading-none tracking-wide";
-
-const formatCurrency = (amount: number) => `${amount.toLocaleString("en-US")}₮`;
-
-const formatProductPrice = (price: string | number) => {
-  const amount = parsePrice(price);
-  return amount === null ? String(price) : formatCurrency(amount);
-};
-
-const initialProducts = [
+};const initialProducts = [
   {
     name: "ROLEX GMT-MASTER II PEPSI",
     category: "WATCHES",
@@ -153,9 +76,8 @@ const initialProducts = [
   },
 ];
 export default function Home() {
-const [products, setProducts] = useState<Product[]>(initialProducts);
+const [products, setProducts] = useState(initialProducts);
  useEffect(() => {
-  if (!supabase) return;
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from("products")
@@ -175,10 +97,13 @@ const [products, setProducts] = useState<Product[]>(initialProducts);
   fetchProducts();
 }, []);
 const [selectedCategory, setSelectedCategory] = useState("ALL");
-const [cartItems, setCartItems] = useState<CartItem[]>([]);
-const [cartReady, setCartReady] = useState(false);
-const [cartFeedback, setCartFeedback] = useState("");
-const [paymentFeedback, setPaymentFeedback] = useState("");
+const [cart, setCart] = useState(0);
+const [cartItems, setCartItems] = useState<Product[]>(() => {
+  if (typeof window === "undefined") return [];
+  const saved = localStorage.getItem("vault13-cart");
+  return saved ? JSON.parse(saved) : [];
+});
+ const [paymentMethod, setPaymentMethod] = useState("");
 const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 const [cartOpen, setCartOpen] = useState(false);
 const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -188,185 +113,8 @@ const [customerPhone, setCustomerPhone] = useState("");
 const [customerAddress, setCustomerAddress] = useState("");
 const [qpayUrls, setQpayUrls] = useState<QPayUrl[]>([]);
 const [qpayInvoiceId, setQpayInvoiceId] = useState("");
-const [qpayOrderId, setQpayOrderId] = useState<number | null>(null);
-const [qpayOrderTotal, setQpayOrderTotal] = useState<number | null>(null);
-const [qpayCheckoutToken, setQpayCheckoutToken] = useState("");
 const [isCreatingQpayInvoice, setIsCreatingQpayInvoice] = useState(false);
-const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 const qpayInvoiceRequestInFlight = useRef(false);
-const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
-const cartTotal = cartItems.reduce((total, item) => {
-  return total + (parsePrice(item.price) ?? 0) * item.quantity;
-}, 0);
-const containsPreorder = cartItems.some(
-  (item) => normalizeAvailability(item.availability) === "PREORDER"
-);
-
-useEffect(() => {
-  const restoreSavedState = () => {
-    const saved = localStorage.getItem("vault13-cart");
-    if (saved) {
-      try {
-        const parsed: unknown = JSON.parse(saved);
-        const restored = restoreCart(parsed);
-        if (restored) {
-          setCartItems(restored);
-        } else {
-          localStorage.removeItem("vault13-cart");
-          setCartFeedback("Хадгалсан сагсны мэдээлэл буруу байсан тул цэвэрлэлээ.");
-        }
-      } catch {
-        localStorage.removeItem("vault13-cart");
-        setCartFeedback("Хадгалсан сагсыг уншиж чадсангүй. Сагс хоосон эхэллээ.");
-      }
-    }
-    const pendingPayment = localStorage.getItem("vault13-pending-payment");
-    if (pendingPayment) {
-      try {
-        const savedPayment: unknown = JSON.parse(pendingPayment);
-        if (
-          savedPayment &&
-          typeof savedPayment === "object" &&
-          "orderId" in savedPayment &&
-          Number.isSafeInteger(Number(savedPayment.orderId)) &&
-          Number(savedPayment.orderId) > 0 &&
-          "invoiceId" in savedPayment &&
-          typeof savedPayment.invoiceId === "string" &&
-          "checkoutToken" in savedPayment &&
-          typeof savedPayment.checkoutToken === "string"
-        ) {
-          setQpayOrderId(Number(savedPayment.orderId));
-          setQpayInvoiceId(savedPayment.invoiceId);
-          setQpayCheckoutToken(savedPayment.checkoutToken);
-          if ("total" in savedPayment && Number.isSafeInteger(Number(savedPayment.total))) {
-            setQpayOrderTotal(Number(savedPayment.total));
-          }
-          if (
-            "urls" in savedPayment &&
-            Array.isArray(savedPayment.urls) &&
-            savedPayment.urls.every((url) =>
-              url &&
-              typeof url === "object" &&
-              "name" in url &&
-              typeof url.name === "string" &&
-              "link" in url &&
-              typeof url.link === "string"
-            )
-          ) {
-            setQpayUrls(savedPayment.urls);
-          }
-          setCheckoutStep(2);
-          setCheckoutOpen(false);
-        }
-      } catch {
-        localStorage.removeItem("vault13-pending-payment");
-        setCartFeedback("Хадгалсан төлбөрийн мэдээллийг уншиж чадсангүй.");
-      }
-    }
-
-    setCartReady(true);
-  };
-  const frame = window.requestAnimationFrame(restoreSavedState);
-  return () => window.cancelAnimationFrame(frame);
-}, []);
-
-useEffect(() => {
-  if (!cartReady) return;
-  localStorage.setItem("vault13-cart", JSON.stringify(cartItems));
-  if (qpayOrderId !== null) {
-    localStorage.setItem(
-      "vault13-pending-payment",
-      JSON.stringify({
-        orderId: qpayOrderId,
-        invoiceId: qpayInvoiceId,
-        total: qpayOrderTotal,
-        checkoutToken: qpayCheckoutToken,
-        urls: qpayUrls,
-      })
-    );
-  } else {
-    localStorage.removeItem("vault13-pending-payment");
-  }
-}, [cartItems, cartReady, qpayCheckoutToken, qpayInvoiceId, qpayOrderId, qpayOrderTotal, qpayUrls]);
-
-const resetPendingQpayForCartChange = () => {
-  if (qpayOrderId !== null || qpayInvoiceId) {
-    setQpayOrderId(null);
-    setQpayOrderTotal(null);
-    setQpayCheckoutToken("");
-    setQpayInvoiceId("");
-    setQpayUrls([]);
-  }
-};
-
-const addToCart = (product: Product, quantity = 1) => {
-  if (!Number.isSafeInteger(Number(product.id)) || Number(product.id) <= 0) {
-    setCartFeedback("Барааны мэдээлэл серверээс баталгаажаагүй байна. Дахин ачаалаад үзнэ үү.");
-    return false;
-  }
-  const key = String(product.id ?? product.name);
-  const currentQuantity = cartItems.find(
-    (item) => String(item.id ?? item.name) === key
-  )?.quantity ?? 0;
-
-  if (
-    normalizeAvailability(product.availability) !== "PREORDER" &&
-    currentQuantity + quantity > Number(product.stock)
-  ) {
-    setCartFeedback(`"${product.name}" барааны үлдэгдэл хүрэлцэхгүй байна.`);
-    return false;
-  }
-
-  resetPendingQpayForCartChange();
-  setCartItems((current) => {
-    const existing = current.find((item) => String(item.id ?? item.name) === key);
-    return existing
-      ? current.map((item) =>
-          String(item.id ?? item.name) === key
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        )
-      : [...current, { ...product, quantity }];
-  });
-  setCartFeedback(`${product.name} сагсанд нэмэгдлээ.`);
-  if (typeof window !== "undefined" && typeof window.fbq === "function") {
-    window.fbq("track", "AddToCart", {
-      content_name: product.name,
-      content_ids: [String(product.id ?? product.name)],
-      content_type: "product",
-      quantity,
-    });
-  }
-  return true;
-};
-
-const changeCartQuantity = (item: CartItem, quantity: number) => {
-  if (quantity <= 0) {
-    resetPendingQpayForCartChange();
-    setCartItems((current) =>
-      current.filter((line) => String(line.id ?? line.name) !== String(item.id ?? item.name))
-    );
-    return;
-  }
-  if (
-    normalizeAvailability(item.availability) !== "PREORDER" &&
-    quantity > Number(item.stock)
-  ) {
-    setCartFeedback(`"${item.name}" барааны үлдэгдэл ${item.stock} байна.`);
-    return;
-  }
-  if (quantity !== item.quantity) {
-    resetPendingQpayForCartChange();
-  }
-  setCartItems((current) =>
-    current.map((line) =>
-      String(line.id ?? line.name) === String(item.id ?? item.name)
-        ? { ...line, quantity }
-        : line
-    )
-  );
-  setCartFeedback("");
-};
 return (
   
  <main className="min-h-screen bg-[#0a0a0a] text-white">
@@ -376,36 +124,25 @@ return (
           <div className="text-xl font-black tracking-[0.3em] md:text-2xl">
             VAULT 13
           </div>
-
-          <div className="col-span-2 row-start-2 flex min-w-0 gap-6 overflow-x-auto overscroll-x-contain whitespace-nowrap text-[11px] tracking-widest touch-pan-x md:gap-10 md:overflow-visible md:text-sm">
-            <a href="#home" className="hover:text-gray-400">
-              НҮҮР
-            </a>
-            <a href="#shop" className="hover:text-gray-400">
-             ДЭЛГҮҮР
-            </a>
-            <a href="#about" className="hover:text-gray-400">
-              БИДНИЙ ТУХАЙ
-            </a>
-            <a href="#contact" className="hover:text-gray-400">
-              ХОЛБОО БАРИХ
-            </a>
+        </div>
+        <Link href="/culture" className="group relative flex min-h-[58vh] flex-col justify-end overflow-hidden border border-white/10 bg-[#111] p-7 transition hover:border-[#c9ad72]/60 sm:min-h-[68vh] sm:p-10">
+          <div className="absolute inset-0 bg-[url('/products/hero-culture.jpg')] bg-cover bg-center opacity-60 transition duration-700 group-hover:scale-[1.03]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
+          <div className="relative">
+            <p className="mb-4 text-[10px] tracking-[0.3em] text-[#d7bd8d]">02 / MUSIC · MERCH · STREETWEAR</p>
+            <h2 className="text-5xl font-semibold tracking-[-0.06em] sm:text-6xl">CULTURE</h2>
+            <p className="mt-4 max-w-xs text-sm leading-6 text-white/65">Хөгжим, band merch, hoodie, T-shirt болон streetwear.</p>
+            <span className="mt-8 inline-flex border border-[#c9ad72]/70 px-6 py-3 text-[10px] font-semibold tracking-[0.2em] text-[#d7bd8d] transition group-hover:bg-[#b58a3a] group-hover:text-black">ДЭЛГҮҮРТ ОРОХ ↗</span>
           </div>
-
+          </Link>
           <button 
             onClick={() => setCartOpen(true)}
-            aria-label={`Сагс нээх, ${cartCount} бараа`}
-            className="col-start-2 row-start-1 inline-flex items-center gap-2 border border-white px-4 py-2 text-xs tracking-widest hover:bg-white hover:text-black"
+            className="col-start-2 row-start-1 border border-white px-4 py-2 text-xs tracking-widest hover:bg-white hover:text-black"
           >
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-              <path d="M3 4h2l2.2 11.1a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 2-1.6L21 8H6" />
-              <circle cx="10" cy="20" r="1" />
-              <circle cx="18" cy="20" r="1" />
-            </svg>
-            CART ({cartCount})
+            CART ({cart})
           </button>
-        </div>
-      </nav>
+        </nav>
+      
 
       {/* HERO */}
       <section
@@ -484,13 +221,13 @@ return (
       </section>
 
       {/* PRODUCTS */}
-      <section id="shop" className="mx-auto max-w-7xl px-3 py-10 sm:px-6 sm:py-24">
-        <div className="mb-6 flex items-end justify-between sm:mb-12">
+      <section id="shop" className="mx-auto max-w-7xl px-6 py-24">
+        <div className="mb-12 flex items-end justify-between">
           <div>
             <p className="mb-3 text-xs tracking-[0.4em] text-gray-500">
               SELECTED COLLECTION
             </p>
-            <h2 className="text-2xl font-bold sm:text-4xl">ШИНЭ БҮТЭЭГДЭХҮҮН</h2>
+            <h2 className="text-4xl font-bold">ШИНЭ БҮТЭЭГДЭХҮҮН</h2>
           </div>
 
           <span className="hidden text-sm text-gray-500 md:block">
@@ -549,21 +286,16 @@ return (
       </section>
 
       {/* FOOTER */}{/* PRODUCTS */}
-{cartFeedback && <p className="mb-6 text-sm text-amber-200" role="status">{cartFeedback}</p>}
-<div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-8 lg:grid-cols-3">
+<div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-8">
   {products
-  .filter((product) =>
-    selectedCategory === "ALL" ||
-    product.category === selectedCategory ||
-    (selectedCategory === "CLOTHES" && product.category === "CLOTHING")
-  )
+  .filter((product) => selectedCategory === "ALL" || product.category === selectedCategory)
 .map((product, index) => (
     <div
       key={index}
       className="group cursor-pointer"
       onClick={() => setSelectedProduct(product)}
     >
-    <div className="relative aspect-square bg-zinc-900 overflow-hidden rounded-2xl border border-white/20">
+    <div className="relative aspect-square bg-zinc-900 overflow-hidden rounded-2xl border border-white/30">
         <img
         
   src={product.image}
@@ -582,45 +314,41 @@ return (
          
       </div>
 
-      <div className="pt-2 sm:pt-5">
-        <p className="text-[9px] tracking-wide text-gray-500 sm:text-xs sm:tracking-widest">
+      <div className="pt-5">
+        <p className="text-xs tracking-widest text-gray-500">
           {product.category}
         </p>
 
-        <h3 className="mt-1.5 line-clamp-2 break-words text-[13px] font-medium leading-snug tracking-tight sm:mt-2 sm:text-lg sm:font-semibold">
+        <h3 className="text-lg mt-2 font-semibold">
           {product.name}
         </h3>
 
-        <p className="mt-1.5 text-[15px] font-medium tracking-tight sm:mt-2 sm:text-lg sm:font-semibold">{formatProductPrice(product.price)}</p>
+<p className="text-gray-400 mt-2">
+  ҮЛДЭГДЭЛ: {product.stock}
+</p>
 
+{product.stock > 0 ? (
+  <button
+   
+onClick={(e) => {
+  e.stopPropagation();
 
+  setCart((prev) => prev + 1);
+  setCartItems((prev) => [...prev, product]);
 
-{normalizeAvailability(product.availability) === "PREORDER" || Number(product.stock) > 0 ? (
-  <div className="mt-3 flex w-full flex-col gap-2 sm:mt-5 sm:flex-row">
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        addToCart(product);
-      }}
-      className="box-border min-h-[44px] w-full min-w-0 flex-1 rounded-[8px] border border-white/30 bg-transparent px-2 py-2 text-center text-[11px] font-semibold leading-snug text-white transition-colors duration-200 hover:bg-white/10 sm:h-[46px] sm:py-0 sm:text-xs"
-    >
-      САГСАНД НЭМЭХ
-    </button>
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (addToCart(product)) {
-          setCheckoutStep(1);
-          setCheckoutOpen(true);
-        }
-      }}
-      className="box-border min-h-[44px] w-full min-w-0 flex-1 rounded-[8px] bg-white px-2 py-2 text-center text-[11px] font-semibold leading-snug text-black transition-colors duration-200 hover:bg-gray-200 sm:h-[46px] sm:py-0 sm:text-xs"
-    >
-      ХУДАЛДАН АВАХ
-    </button>
-  </div>
+  if (typeof window !== "undefined" && typeof (window as any).fbq === "function") {
+    (window as any).fbq("track", "AddToCart", {
+      content_name: product.name,
+      content_ids: [String(product.name)],
+      content_type: "product",
+    });
+  }
+}}
+
+    className="w-full border border-white mt-5 py-3"
+  >
+    САГСАНД НЭМЭХ
+  </button>
 ) : (
   <button
     disabled
@@ -687,81 +415,29 @@ return (
       <h2 className="text-2xl font-bold mt-2">
   {selectedProduct.name}
 </h2>
-      <p className="text-xl mt-4 font-semibold">
-        {formatProductPrice(selectedProduct.price)}
+      <p className="text-xl mt-4">
+        {selectedProduct.price}
       </p>
 
    <div className="mt-6 text-sm text-gray-400 leading-7">
-  {selectedProduct.description ? (
-    <p>{selectedProduct.description}</p>
-  ) : (
-    <>
-      <p>Чанартай хийцтэй</p>
-      <p>Усны хамгаалалттай</p>
-      <p>Өдөр тутам хэрэглэхэд тохиромжтой</p>
-    </>
-  )}
-  {normalizeAvailability(selectedProduct.availability) === "PREORDER" ? (
-    <div className="mt-4 flex flex-wrap items-center gap-3">
-      <span className={`${availabilityBadgeClass} bg-[#F5B82E] text-black`}>
-        УРЬДЧИЛСАН ЗАХИАЛГА
-      </span>
-      <span className="text-sm text-gray-400">6–9 хоног</span>
-    </div>
-  ) : Number(selectedProduct.stock) > 0 ? (
-    <div className="mt-4 flex flex-wrap items-center gap-3">
-      <span className="h-2.5 w-2.5 rounded-full bg-[#16B84E]" aria-hidden="true" />
-      <span className={`${availabilityBadgeClass} bg-[#16B84E] text-white`}>БЭЛЭН</span>
-      <span className="border-l border-white/20 pl-3 text-sm text-gray-400">
-        ҮЛДЭГДЭЛ: {selectedProduct.stock}
-      </span>
-    </div>
-  ) : (
-    <div className="mt-4">
-      <span className={`${availabilityBadgeClass} bg-[#6B6B6B] text-white`}>ДУУССАН</span>
-    </div>
-  )}
+  <p>Чанартай хийцтэй</p>
+  <p>Усны хамгаалалттай</p>
+  <p>Өдөр тутам хэрэглэхэд тохиромжтой</p>
 </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            addToCart(selectedProduct);
-          }}
-          disabled={
-            normalizeAvailability(selectedProduct.availability) !== "PREORDER" &&
-            Number(selectedProduct.stock) <= 0
-          }
-          className="w-full flex-1 border border-white/40 py-4 font-bold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          САГСАНД НЭМЭХ
-        </button>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            if (addToCart(selectedProduct)) {
-              setSelectedProduct(null);
-              setCheckoutStep(1);
-              setCheckoutOpen(true);
-            }
-          }}
-          disabled={
-            normalizeAvailability(selectedProduct.availability) !== "PREORDER" &&
-            Number(selectedProduct.stock) <= 0
-          }
-          className="w-full flex-1 bg-white py-4 font-bold text-black hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          ХУДАЛДАН АВАХ
-        </button>
-      </div>
-      {cartFeedback && (
-        <p className="mt-3 text-sm text-amber-200" role="status">
-          {cartFeedback}
-        </p>
-      )}
+      <button
+onClick={() => {
+  if (selectedProduct) {
+    setCart((prev) => prev + 1);
+    setCartItems((prev) => [...prev, selectedProduct]);
+  }
+  setSelectedProduct(null);
+  setCheckoutOpen(true);
+}}
+        className="w-full bg-white text-black mt-6 py-4 font-bold"
+      >
+        ХУДАЛДАН АВАХ
+      </button>
     </div>
   </div>
 )}
@@ -795,33 +471,17 @@ return (
     <p className="text-gray-400">Таны сагс хоосон байна.</p>
   ) : (
     <div className="space-y-4">
-      {cartItems.map((item) => (
-        <div key={String(item.id ?? item.name)} className="flex gap-4 border-b border-white/10 pb-4">
+      {cartItems.map((item, index) => (
+        <div key={index} className="flex gap-4 border-b border-white/10 pb-4">
           <img
             src={item.image}
             alt={item.name}
             className="w-20 h-20 object-cover"
           />
 
-          <div className="min-w-0 flex-1">
+          <div>
             <p className="font-semibold">{item.name}</p>
-            <p className="text-gray-400 mt-1">{formatProductPrice(item.price)}</p>
-            {normalizeAvailability(item.availability) === "PREORDER" && (
-              <p className="mt-1 text-xs text-amber-200">УРЬДЧИЛСАН ЗАХИАЛГА · 6–9 хоног</p>
-            )}
-            <div className="mt-2 flex items-center gap-3">
-                  <button type="button" onClick={() => changeCartQuantity(item, item.quantity - 1)} aria-label={`${item.name} тоо хасах`} className="h-8 w-8 border border-white/30 disabled:opacity-40">−</button>
-              <span>{item.quantity}</span>
-              <button type="button" onClick={() => changeCartQuantity(item, item.quantity + 1)} aria-label={`${item.name} тоо нэмэх`} className="h-8 w-8 border border-white/30 disabled:opacity-40">+</button>
-              <button
-                type="button"
-                onClick={() => changeCartQuantity(item, 0)}
-                className="border border-red-400/60 px-2 py-1 text-xs font-semibold text-red-300 hover:border-red-400 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                УСТГАХ
-              </button>
-              <span className="ml-auto font-semibold">{formatCurrency((parsePrice(item.price) ?? 0) * item.quantity)}</span>
-            </div>
+            <p className="text-gray-400 mt-1">{item.price}</p>
           </div>
         </div>
       ))}
@@ -832,12 +492,14 @@ return (
   <div className="flex justify-between font-bold">
     <span>НИЙТ</span>
  <span>
-  {formatCurrency(cartTotal)}
+  {cartItems.reduce((total, item) => {
+  const price = parseInt(String(item.price).replace(/\D/g, ""), 10);
+  return total + price;
+}, 0).toLocaleString()}₮
     </span>
   </div>
 </div>
       <button
-        disabled={cartItems.length === 0}
         onClick={() => {
           setCartOpen(false);
           setCheckoutOpen(true);
@@ -846,26 +508,20 @@ return (
       >
         ТӨЛБӨР ТӨЛӨХ
       </button>
-      {cartFeedback && <p className="mt-3 text-sm text-amber-200" role="status">{cartFeedback}</p>}
-      {containsPreorder && (
-        <p className="mt-3 border border-amber-300/30 p-3 text-sm text-amber-200">
-          Урьдчилсан захиалга 100% урьдчилгаа төлбөртэй. Ирэх хугацаа: 6–9 хоног.
-        </p>
-      )}
     </div>
   </div>
 )}{checkoutOpen && (
   <div
-    className="fixed inset-0 z-[110] bg-black/80 flex items-start justify-center overflow-y-auto overscroll-contain p-2 sm:items-center sm:p-4"
+    className="fixed inset-0 z-[110] bg-black/80 flex items-center justify-center p-4"
     onClick={() => setCheckoutOpen(false)}
   >
     <div
-      className="relative my-auto max-h-[calc(100dvh-1rem)] w-full max-w-md overflow-y-auto overscroll-contain bg-zinc-950 border border-white/20 p-4 sm:max-h-[90dvh] sm:p-6"
+      className="w-full max-w-md bg-zinc-950 border border-white/20 p-6"
       onClick={(e) => e.stopPropagation()}
     >
       <button
         onClick={() => setCheckoutOpen(false)}
-        className="sticky top-0 z-10 float-right bg-zinc-950 px-2 text-2xl"
+        className="float-right text-2xl"
       >
         ×
       </button>
@@ -922,93 +578,57 @@ return (
 
 
     <div className="min-h-0 flex-1 overflow-y-auto space-y-3">
-  {containsPreorder && (
-    <p className="mt-5 border border-amber-300/30 p-3 text-sm text-amber-200">
-      Урьдчилсан захиалга 100% урьдчилгаа төлбөртэй. Ирэх хугацаа: 6–9 хоног.
-    </p>
-  )}
-  <p className="mt-3 text-right font-semibold">Нийт: {formatCurrency(qpayOrderTotal ?? cartTotal)}</p>
   <p className="text-sm text-gray-400 mt-6">
     Төлбөрийн хэлбэр
   </p>
    
 <button
   type="button"
-  disabled={isCreatingQpayInvoice || cartItems.length === 0 || Boolean(qpayInvoiceId)}
+  disabled={isCreatingQpayInvoice}
   aria-busy={isCreatingQpayInvoice}
   onClick={async () => {
     if (qpayInvoiceRequestInFlight.current) return;
+
+    const total = cartItems.reduce((sum, item) => {
+      return sum + Number(String(item.price).replace(/[^\d]/g, ""));
+    }, 0);
+
+    if (total <= 0) {
+      alert("Сагсны төлбөрийн дүн 0 байна.");
+      return;
+    }
+
     qpayInvoiceRequestInFlight.current = true;
     setIsCreatingQpayInvoice(true);
     setQpayUrls([]);
     setQpayInvoiceId("");
-    setPaymentFeedback("");
+    const requestStartedAt = performance.now();
 
     try {
-      let orderId = qpayOrderId;
-      let checkoutToken = qpayCheckoutToken;
-      if (orderId === null) {
-        const orderResponse = await fetch("/api/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            customerName,
-            customerPhone,
-            customerAddress,
-            items: cartItems.map((item) => ({
-              id: item.id,
-              quantity: item.quantity,
-            })),
-          }),
-        });
-        const orderData = await orderResponse.json();
-        if (!orderResponse.ok) {
-          throw new Error(orderData.error || "Захиалга үүсгэж чадсангүй.");
-        }
-        orderId = Number(orderData.orderId);
-        checkoutToken = String(orderData.checkoutToken ?? "");
-        if (!checkoutToken) throw new Error("Захиалгын баталгаажуулалт үүсгэсэнгүй.");
-        setQpayCheckoutToken(checkoutToken);
-        setQpayOrderTotal(Number(orderData.total));
-        if (Array.isArray(orderData.items)) {
-          setCartItems(
-            orderData.items.map((item: {
-              product_id: number;
-              name: string;
-              category: string;
-              price: number;
-              image: string;
-              availability: string;
-              quantity: number;
-            }) => ({
-              id: item.product_id,
-              name: item.name,
-              category: item.category,
-              price: item.price,
-              image: item.image,
-              availability: item.availability,
-              stock: 0,
-              quantity: item.quantity,
-            }))
-          );
-        }
-        setQpayOrderId(orderId);
-      }
-
       const response = await fetch("/api/qpay/invoice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, checkoutToken }),
+        body: JSON.stringify({
+          amount: total,
+          orderId: `ORDER-${Date.now()}`,
+        }),
       });
+
       const data = await response.json();
+      console.info(
+        `QPay invoice API response time: ${Math.round(performance.now() - requestStartedAt)} ms`
+      );
+
       if (!response.ok) {
-        throw new Error(data.error || "QPay нэхэмжлэл үүссэнгүй.");
+        alert(data.error || "QPay нэхэмжлэл үүссэнгүй");
+        return;
       }
 
+      setPaymentMethod("QPAY");
       setQpayUrls(data.urls || []);
-      setQpayInvoiceId(String(data.invoice_id || ""));
-    } catch (error) {
-      setPaymentFeedback(error instanceof Error ? error.message : "QPay сервертэй холбогдож чадсангүй.");
+      setQpayInvoiceId(data.invoice_id || "");
+    } catch {
+      alert("QPay сервертэй холбогдож чадсангүй.");
     } finally {
       qpayInvoiceRequestInFlight.current = false;
       setIsCreatingQpayInvoice(false);
@@ -1016,9 +636,8 @@ return (
   }}
   className="w-full border border-white/20 mt-3 py-4 disabled:cursor-wait disabled:opacity-60"
 >
-  {isCreatingQpayInvoice ? "Нэхэмжлэл үүсгэж байна..." : qpayInvoiceId ? "QPAY НЭХЭМЖЛЭЛ ҮҮССЭН" : "QPAY"}
+  {isCreatingQpayInvoice ? "Нэхэмжлэл үүсгэж байна..." : "QPAY"}
 </button>
-{paymentFeedback && <p className="text-sm text-amber-200" role="alert">{paymentFeedback}</p>}
 {qpayUrls.length > 0 && (
   <div className="mt-4 space-y-3 max-h-[55vh] overflow-y-auto overscroll-contain touch-pan-y">
     <p className="text-center text-white">
@@ -1040,55 +659,80 @@ return (
 )}
 <button
   type="button"
-  disabled={!qpayInvoiceId || qpayOrderId === null || isVerifyingPayment}
-  aria-busy={isVerifyingPayment}
   onClick={async () => {
-    setPaymentFeedback("");
-    setIsVerifyingPayment(true);
     try {
-      const paymentCheck = await fetch("/api/qpay/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          invoiceId: qpayInvoiceId,
-          orderId: qpayOrderId,
-          checkoutToken: qpayCheckoutToken,
-        }),
-      });
-      const paymentData = await paymentCheck.json();
-      if (!paymentCheck.ok) {
-        throw new Error(paymentData.error || "Төлбөр шалгаж чадсангүй.");
-      }
-      if (!paymentData.paid) {
-        setPaymentFeedback("Төлбөр QPay-ээр хараахан баталгаажаагүй байна.");
+      if (!qpayInvoiceId) {
+        alert("Эхлээд QPay нэхэмжлэл үүсгэнэ үү.");
         return;
       }
 
-      setCheckoutOpen(false);
-      setCartItems([]);
-      setQpayOrderId(null);
-      setQpayOrderTotal(null);
-      setQpayCheckoutToken("");
-      setQpayInvoiceId("");
-      setQpayUrls([]);
-      const confirmationMessage = paymentData.inventoryIssue
-        ? "Төлбөр баталгаажлаа. Захиалгын нөөцийг админ шалгах шаардлагатай."
-        : "Төлбөр баталгаажиж, захиалга бүртгэгдлээ.";
-      setPaymentFeedback(confirmationMessage);
-      setCartFeedback(confirmationMessage);
-      if (supabase) {
-        const { data } = await supabase.from("products").select("*").order("id", { ascending: true });
-        if (data) setProducts(data);
+      const total = cartItems.reduce((sum, item) => {
+        return sum + Number(String(item.price).replace(/[^\d]/g, ""));
+      }, 0);
+      const paymentCheck = await fetch("/api/qpay/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId: qpayInvoiceId }),
+      });
+      const paymentData = await paymentCheck.json();
+
+      if (
+        !paymentCheck.ok ||
+        !paymentData.paid ||
+        Number(paymentData.paidAmount) < total
+      ) {
+        alert("Төлбөр бүрэн баталгаажаагүй байна. QPay төлбөрөө шалгана уу.");
+        return;
       }
+
+      const { error } = await supabase.from("orders").insert([
+        {
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_address: customerAddress,
+          payment_method: paymentMethod,
+          items: cartItems,
+          total,
+        },
+      ]);
+
+      if (error) {
+        alert("Захиалга хадгалахад алдаа гарлаа: " + error.message);
+        return;
+      }
+
+      alert(
+        "Захиалга амжилттай бүртгэгдлээ.\n\n" +
+          "Нэр: " + customerName + "\n" +
+          "Утас: " + customerPhone + "\n" +
+          "Хаяг: " + customerAddress + "\n" +
+          "Төлбөрийн хэлбэр: " + paymentMethod + "\n" +
+          "Нийт дүн: " + total.toLocaleString() + "₮"
+      );
+
+      setCheckoutOpen(false);
+      setProducts((prevProducts) =>
+        prevProducts.map((product) => {
+          const orderedCount = cartItems.filter(
+            (item) => item.name === product.name
+          ).length;
+
+          return {
+            ...product,
+            stock: Math.max(0, product.stock - orderedCount),
+          };
+        })
+      );
+      setCart(0);
+      setCartItems([]);
     } catch (error) {
-      setPaymentFeedback(error instanceof Error ? error.message : "Төлбөр шалгахад алдаа гарлаа.");
-    } finally {
-      setIsVerifyingPayment(false);
+      console.error("Төлбөр шалгахад алдаа:", error);
+      alert("Төлбөр шалгахад алдаа гарлаа. Дахин оролдоно уу.");
     }
   }}
-  className="w-full bg-white text-black mt-3 py-4 font-bold disabled:cursor-wait disabled:opacity-50"
+  className="w-full bg-white text-black mt-3 py-4 font-bold"
 >
-  {isVerifyingPayment ? "ТӨЛБӨР ШАЛГАЖ БАЙНА..." : "ТӨЛБӨР ШАЛГАХ"}
+  ТӨЛБӨР ШАЛГАХ
 </button>
     </div>
 )}
