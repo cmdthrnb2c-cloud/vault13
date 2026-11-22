@@ -124,6 +124,16 @@ const [storefrontMedia, setStorefrontMedia] = useState<Record<string, string>>({
     .catch((error) => console.error("Storefront media load error:", error));
 }, []);
 const [selectedCategory, setSelectedCategory] = useState("ALL");
+const selectCategory = (category: string) => {
+  setSelectedCategory(category);
+
+setTimeout(() => {
+    document.getElementById("shop")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, 100);
+};
 const [cart, setCart] = useState(0);
 const [cartItems, setCartItems] = useState<Product[]>(() => {
   if (typeof window === "undefined") return [];
@@ -238,7 +248,7 @@ return (
               ].map(([title, subtitle, image, value, assetKey]) => (
                 <button
                   key={value}
-                  onClick={() => setSelectedCategory(value)}
+                  onClick={() => selectCategory(value)}
                   className="group relative flex aspect-[4/5] min-h-[150px] flex-col justify-end overflow-hidden rounded-2xl border border-white/10 bg-[#151515] p-4 text-left transition hover:-translate-y-1 hover:border-[#c9ad72]/60 sm:p-5"
                   style={{ backgroundImage: `linear-gradient(0deg, rgba(0,0,0,.94), rgba(0,0,0,.08)), url("${storefrontMedia[assetKey] || `/products/${image}`}")`, backgroundPosition: "center", backgroundSize: "cover" }}
                 >
@@ -253,7 +263,7 @@ return (
               {["ALL", "MUSIC_MERCH", "FOOTWEAR", "CLOTHING", "FILM_CINEMA", "MUSIC_VINYL", "ACCESSORIES"].map((value, index) => {
                 const labels = ["БҮГД", "BAND MERCH", "FOOTWEAR", "CLOTHING", "FILM", "VINYL", "ACCESSORIES"];
                 return (
-                  <button key={value} onClick={() => setSelectedCategory(value)} className={`shrink-0 rounded-full px-4 py-2.5 text-[9px] font-semibold tracking-[0.12em] transition ${selectedCategory === value ? "bg-white text-black" : "border border-white/10 text-white/55 hover:border-white/30 hover:text-white"}`}>
+                  <button key={value} onClick={() => selectCategory(value)} className={`shrink-0 rounded-full px-4 py-2.5 text-[9px] font-semibold tracking-[0.12em] transition ${selectedCategory === value ? "bg-white text-black" : "border border-white/10 text-white/55 hover:border-white/30 hover:text-white"}`}>
                     {labels[index]}
                   </button>
                 );
@@ -265,7 +275,7 @@ return (
         <section className="border-b border-white/10 bg-[#080808] py-5">
           <div className="mx-auto flex max-w-7xl gap-3 overflow-x-auto px-5 sm:px-8">
             {[["ALL", "БҮГД"], ["WATCHES", "ЦАГ"]].map(([value, label]) => (
-              <button key={value} onClick={() => setSelectedCategory(value)} className={`shrink-0 rounded-full px-5 py-3 text-[10px] font-semibold tracking-[0.13em] transition ${selectedCategory === value ? "bg-white text-black" : "border border-white/10 text-white/55 hover:border-white/30 hover:text-white"}`}>
+              <button key={value} onClick={() => selectCategory(value)} className={`shrink-0 rounded-full px-5 py-3 text-[10px] font-semibold tracking-[0.13em] transition ${selectedCategory === value ? "bg-white text-black" : "border border-white/10 text-white/55 hover:border-white/30 hover:text-white"}`}>
                 {label}
               </button>
             ))}
@@ -275,6 +285,19 @@ return (
 
       {/* PRODUCTS */}
       <section id="shop" className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+       {store === "culture" && (
+  <button
+    onClick={() => {
+      setSelectedCategory("ALL");
+      document.getElementById("home")?.scrollIntoView({
+        behavior: "smooth",
+      });
+    }}
+    className="mt-5 text-xs tracking-widest text-[#c9ad72]"
+  >
+    ← АНГИЛАЛ РУУ БУЦАХ
+  </button>
+)}
         <div className="mb-8 flex items-end justify-between gap-4">
           <div><p className="mb-2 text-[10px] font-semibold tracking-[0.25em] text-[#c9ad72]">VAULT 13 / {store === "watches" ? "WATCHES" : "CULTURE"}</p><h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">{store === "watches" ? "Сонгогдсон цагнууд" : selectedCategory === "ALL" ? "ALL PRODUCTS" : "Сонгосон ангилал"}</h2></div>
           <span className="pb-1 text-[10px] tracking-[0.16em] text-white/35">V13</span>
