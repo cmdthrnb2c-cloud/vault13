@@ -76,6 +76,11 @@ export default function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [password, setPassword] = useState("");
+  const [storefrontMedia, setStorefrontMedia] = useState<Record<string, string>>({});
+  const [storefrontFiles, setStorefrontFiles] = useState<Record<string, File | null>>({});
+  const [storefrontSaving, setStorefrontSaving] = useState<string | null>(null);
+  const [storefrontMessage, setStorefrontMessage] = useState("");
+
   const [productImageFiles, setProductImageFiles] = useState<File[]>([]);
   const [productVideoFiles, setProductVideoFiles] = useState<File[]>([]);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
@@ -175,6 +180,61 @@ setOrders(ordersResult.orders ?? []);
  return () => {
    cancelled = true;
  };
+}, [loggedIn]);
+
+
+const storefrontImageItems = [
+  { key: "watch_hero", label: "WATCHES HERO" },
+  { key: "culture_hero", label: "CULTURE HERO" },
+  { key: "culture_music_merch", label: "MUSIC & BAND MERCH" },
+  { key: "culture_footwear", label: "FOOTWEAR" },
+  { key: "culture_clothing", label: "CLOTHING" },
+  { key: "culture_film_cinema", label: "FILM & CINEMA" },
+  { key: "culture_music_vinyl", label: "MUSIC & VINYL" },
+  { key: "culture_accessories", label: "ACCESSORIES" },
+];
+
+const saveStorefrontImage = async (key: string) => {
+  const file = storefrontFiles[key];
+  if (!file) {
+    setStorefrontMessage("Эхлээд зураг сонгоно уу.");
+    return;
+  }
+
+  setStorefrontSaving(key);
+  setStorefrontMessage("");
+
+  try {
+    const uploaded = await uploadMediaFiles([file]);
+    const response = await fetch("/api/storefront-media", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, url: uploaded[0] }),
+    });
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Зургийг хадгалж чадсангүй.");
+    }
+
+    setStorefrontMedia((current) => ({ ...current, [key]: uploaded[0] }));
+    setStorefrontFiles((current) => ({ ...current, [key]: null }));
+    setStorefrontMessage("Зураг амжилттай хадгалагдлаа.");
+  } catch (error) {
+    setStorefrontMessage(error instanceof Error ? error.message : "Алдаа гарлаа.");
+  } finally {
+    setStorefrontSaving(null);
+  }
+};
+
+useEffect(() => {
+  if (!loggedIn) return;
+  fetch("/api/storefront-media", { cache: "no-store" })
+    .then(async (response) => {
+      const result = await response.json();
+      setStorefrontMedia(result.media ?? {});
+    })
+    .catch(() => setStorefrontMessage("Storefront зургуудыг ачаалж чадсангүй."));
 }, [loggedIn]);
 
 const resetProductForm = () => {
@@ -455,7 +515,57 @@ if (!loggedIn) {
           </div>
         </div>
 
-        <section aria-labelledby="meta-insights-title" className="mt-10 border border-white/20 p-6">
+        
+<section className="mt-10 border border-white/20 p-6">
+  <p className="text-xs tracking-[0.2em] text-gray-500">WEBSITE SETTINGS</p>
+  <h2 className="mt-2 text-xl font-bold">STOREFRONT MEDIA</h2>
+  <p className="mt-2 text-sm text-gray-400">
+    Нүүр хуудасны 2 Hero болон Culture-ийн 6 ангиллын зургийг эндээс солино.
+  </p>
+
+  <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    {storefrontImageItems.map((item) => (
+      <div key={item.key} className="min-w-0 border border-white/15 p-3">
+        <p className="mb-3 text-xs font-semibold tracking-wider">{item.label}</p>
+        {storefrontMedia[item.key] ? (
+          <img
+            src={storefrontMedia[item.key]}
+            alt={item.label}
+            className="mb-3 aspect-[4/3] w-full object-cover"
+          />
+        ) : (
+          <div className="mb-3 flex aspect-[4/3] items-center justify-center bg-white/5 text-xs text-gray-500">
+            Зураг тохируулаагүй
+          </div>
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(event) =>
+            setStorefrontFiles((current) => ({
+              ...current,
+              [item.key]: event.target.files?.[0] ?? null,
+            }))
+          }
+          className="w-full text-xs text-gray-400 file:mr-2 file:border-0 file:bg-white file:px-3 file:py-2 file:text-black"
+        />
+        <button
+          type="button"
+          onClick={() => void saveStorefrontImage(item.key)}
+          disabled={!storefrontFiles[item.key] || storefrontSaving === item.key}
+          className="mt-3 w-full border border-white/30 px-3 py-2 text-xs font-semibold disabled:opacity-40"
+        >
+          {storefrontSaving === item.key ? "UPLOAD ХИЙЖ БАЙНА..." : "ЗУРАГ СОЛИХ / ХАДГАЛАХ"}
+        </button>
+      </div>
+    ))}
+  </div>
+  {storefrontMessage && (
+    <p className="mt-4 text-sm text-amber-300" role="status">{storefrontMessage}</p>
+  )}
+</section>
+
+<section aria-labelledby="meta-insights-title" className="mt-10 border border-white/20 p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-xs tracking-[0.2em] text-gray-500">META ADS</p>
