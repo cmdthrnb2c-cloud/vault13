@@ -16,6 +16,7 @@ type Product = {
   videos?: string[];
   availability?: string;
   store?: string;
+  description?: string;
 };
 
 const preorderDescription =
@@ -523,9 +524,9 @@ onClick={(e) => {
 
               <div className="mt-6 rounded-xl border border-[#b99a63]/25 bg-[#c9a45c]/[0.045] p-4 sm:mt-7 sm:p-5">
                 <p className="text-[10px] font-semibold tracking-[0.2em] text-[#d7bd8d]">БҮТЭЭГДЭХҮҮНИЙ ТАЙЛБАР</p>
-                <p className="mt-3 text-sm leading-6 text-white/75">
-                  VAULT 13-ын сонгосон загвар. Өдөр тутмын хэрэглээ болон хувийн хэв маягт тань нийцэх бүтээгдэхүүн.
-                </p>
+                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-white/75">
+  {selectedProduct.description?.trim() || "Одоогоор тайлбар оруулаагүй байна."}
+</p>
               </div>
 
               <div className="mt-6 border-y border-[#b99a63]/20 py-4 sm:mt-7 sm:py-5">
