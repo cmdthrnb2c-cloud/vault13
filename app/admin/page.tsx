@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { normalizeAvailability, PREORDER_ORDER_STATUSES } from "@/lib/commerce";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const supabase = supabaseUrl && supabasePublishableKey
-  ? createClient(supabaseUrl, supabasePublishableKey)
-  : null;
 
 type MetaInsight = {
   date_start?: string;
@@ -36,6 +29,9 @@ type AdminProduct = {
   category: string;
   price: string | number;
   image: string;
+  images?: string[];
+  videos?: string[];
+  store?: "watches" | "culture";
   stock: number;
   availability?: string | null;
   description?: string | null;
@@ -80,18 +76,22 @@ export default function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [password, setPassword] = useState("");
-  const [productImageFile, setProductImageFile] = useState<File | null>(null);
+  const [productImageFiles, setProductImageFiles] = useState<File[]>([]);
+  const [productVideoFiles, setProductVideoFiles] = useState<File[]>([]);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [adminMessage, setAdminMessage] = useState("");
   const [productForm, setProductForm] = useState({
     name: "",
+    store: "watches" as "watches" | "culture",
     category: "WATCHES",
     price: "",
     stock: "0",
     availability: "IN_STOCK",
     description: "",
     image: "",
+    images: [] as string[],
+    videos: [] as string[],
   });
 const [products, setProducts] = useState<AdminProduct[]>([]);
 const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -179,62 +179,102 @@ setOrders(ordersResult.orders ?? []);
 
 const resetProductForm = () => {
  setEditingProductId(null);
- setProductImageFile(null);
+ setProductImageFiles([]);
+ setProductVideoFiles([]);
  setProductForm({
    name: "",
+   store: "watches",
    category: "WATCHES",
    price: "",
    stock: "0",
    availability: "IN_STOCK",
    description: "",
    image: "",
+   images: [],
+   videos: [],
  });
 };
 
 const editProduct = (product: AdminProduct) => {
  setEditingProductId(Number(product.id));
- setProductImageFile(null);
+ setProductImageFiles([]);
+ setProductVideoFiles([]);
+ const existingImages = Array.isArray(product.images) && product.images.length
+   ? product.images
+   : product.image ? [product.image] : [];
  setProductForm({
    name: String(product.name ?? ""),
+   store: product.store === "culture" ? "culture" : "watches",
    category: String(product.category ?? "WATCHES"),
    price: String(product.price ?? ""),
    stock: String(product.stock ?? 0),
    availability: normalizeAvailability(product.availability),
    description: String(product.description ?? ""),
-   image: String(product.image ?? ""),
+   image: String(product.image ?? existingImages[0] ?? ""),
+   images: existingImages,
+   videos: Array.isArray(product.videos) ? product.videos : [],
  });
+};
+
+const uploadMediaFiles = async (files: File[]) => {
+ const uploaded: string[] = [];
+ for (const file of files) {
+   const formData = new FormData();
+   formData.append("file", file);
+   const response = await fetch("/api/admin/upload", {
+     method: "POST",
+     body: formData,
+   });
+   const result = await response.json();
+   if (!response.ok || !result.url) {
+     throw new Error(result.error || `Файл upload хийхэд алдаа гарлаа: ${file.name}`);
+   }
+   uploaded.push(String(result.url));
+ }
+ return uploaded;
 };
 
 const saveProduct = async () => {
  setAdminMessage("");
- if (!productForm.name.trim() || !productForm.price || (!productForm.image.trim() && !productImageFile)) {
-   setAdminMessage("Нэр, үнэ болон зургийн URL эсвэл зургийн файл оруулна уу.");
+ if (!productForm.name.trim() || !productForm.price) {
+   setAdminMessage("Барааны нэр болон үнийг оруулна уу.");
    return;
  }
 
  setIsSavingProduct(true);
  try {
-   let image = productForm.image.trim();
-   if (productImageFile) {
-     if (!supabase) throw new Error("Supabase image upload тохиргоо дутуу байна.");
-     const extension = productImageFile.name.split(".").pop() || "jpg";
-     const fileName = `${Date.now()}.${extension}`;
-     const { error: uploadError } = await supabase.storage
-       .from("product-images")
-       .upload(fileName, productImageFile);
-     if (uploadError) throw new Error(`Зураг upload хийхэд алдаа гарлаа: ${uploadError.message}`);
-     image = supabase.storage.from("product-images").getPublicUrl(fileName).data.publicUrl;
+   if (productImageFiles.length + (productForm.images?.length ?? 0) > 12) {
+     throw new Error("Нэг бараанд хамгийн ихдээ 12 зураг оруулна уу.");
+   }
+   if (productVideoFiles.length + (productForm.videos?.length ?? 0) > 5) {
+     throw new Error("Нэг бараанд хамгийн ихдээ 5 видео оруулна уу.");
+   }
+   const uploadedImages = await uploadMediaFiles(productImageFiles);
+   const uploadedVideos = await uploadMediaFiles(productVideoFiles);
+   const existingImages = Array.isArray(productForm.images) ? productForm.images : [];
+   const images = [...existingImages, ...uploadedImages];
+   const videos = [...(Array.isArray(productForm.videos) ? productForm.videos : []), ...uploadedVideos];
+   const image = images[0] || productForm.image.trim();
+
+   if (!image) {
+     throw new Error("Дор хаяж нэг зураг эсвэл зургийн URL оруулна уу.");
    }
 
    const response = await fetch("/api/admin/products", {
      method: editingProductId === null ? "POST" : "PATCH",
      headers: { "Content-Type": "application/json" },
      body: JSON.stringify({
-       ...productForm,
        id: editingProductId,
+       name: productForm.name.trim(),
+       store: productForm.store,
+       category: productForm.category,
        price: Number(productForm.price.replace(/[^\d]/g, "")),
        stock: Number(productForm.stock),
+       availability: productForm.availability,
+       description: productForm.description,
        image,
+       images,
+       videos,
      }),
    });
    const result = await response.json();
@@ -558,12 +598,34 @@ if (!loggedIn) {
               <input value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} className="w-full border border-white/20 bg-black p-3" />
             </label>
             <label className="space-y-2 text-sm text-gray-300">
+              <span>Дэлгүүр</span>
+              <select value={productForm.store} onChange={(event) => setProductForm({
+                ...productForm,
+                store: event.target.value as "watches" | "culture",
+                category: event.target.value === "culture" ? "MUSIC_MERCH" : "WATCHES",
+              })} className="w-full border border-white/20 bg-black p-3">
+                <option value="watches">WATCHES</option>
+                <option value="culture">CULTURE</option>
+              </select>
+            </label>
+            <label className="space-y-2 text-sm text-gray-300">
               <span>Ангилал</span>
               <select value={productForm.category} onChange={(event) => setProductForm({ ...productForm, category: event.target.value })} className="w-full border border-white/20 bg-black p-3">
-                <option value="WATCHES">ЦАГ</option>
-                <option value="CLOTHING">ХУВЦАС</option>
-                <option value="SHOES">ГУТАЛ</option>
-                <option value="ACCESSORIES">АКСЕССУАР</option>
+                {productForm.store === "watches" ? (
+                  <>
+                    <option value="WATCHES">ЦАГ</option>
+                    <option value="ACCESSORIES">АКСЕССУАР</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="MUSIC_MERCH">MUSIC MERCH</option>
+                    <option value="FOOTWEAR">FOOTWEAR</option>
+                    <option value="CLOTHING">CLOTHING</option>
+                    <option value="FILM_CINEMA">FILM / CINEMA</option>
+                    <option value="MUSIC_VINYL">MUSIC / VINYL</option>
+                    <option value="ACCESSORIES">ACCESSORIES</option>
+                  </>
+                )}
               </select>
             </label>
             <label className="space-y-2 text-sm text-gray-300">
@@ -587,14 +649,61 @@ if (!loggedIn) {
                 Урьдчилсан захиалга 6–9 хоногт ирнэ. Барааны биет үлдэгдлээс хасахгүй.
               </p>
             )}
-            <label className="space-y-2 text-sm text-gray-300">
-              <span>Зургийн URL</span>
-              <input value={productForm.image} onChange={(event) => setProductForm({ ...productForm, image: event.target.value })} placeholder="Одоогийн URL эсвэл шинэ URL" className="w-full border border-white/20 bg-black p-3" />
-            </label>
-            <label className="space-y-2 text-sm text-gray-300">
-              <span>Зураг upload хийх (сонголтоор)</span>
-              <input type="file" accept="image/*" onChange={(event) => setProductImageFile(event.target.files?.[0] ?? null)} className="w-full border border-white/20 bg-black p-3" />
-            </label>
+            <div className="space-y-3 text-sm text-gray-300 md:col-span-2">
+              <label className="block space-y-2">
+                <span>Зургийн URL (эхний зураг)</span>
+                <input value={productForm.image} onChange={(event) => setProductForm({
+                  ...productForm,
+                  image: event.target.value,
+                  images: event.target.value.trim()
+                    ? [event.target.value.trim(), ...(productForm.images ?? []).filter((url) => url !== productForm.image && url !== event.target.value.trim())]
+                    : (productForm.images ?? []).filter((url) => url !== productForm.image),
+                })} placeholder="Зургийн URL оруулах (сонголтоор)" className="w-full border border-white/20 bg-black p-3" />
+              </label>
+              <label className="block space-y-2">
+                <span>Олон зураг upload хийх</span>
+                <input type="file" accept="image/*" multiple onChange={(event) => setProductImageFiles(Array.from(event.target.files ?? []))} className="w-full border border-white/20 bg-black p-3" />
+                <span className="block text-xs text-gray-500">Нэг зураг 15MB-аас бага байна. Одоо сонгосон: {productImageFiles.length}</span>
+              </label>
+              {((productForm.images ?? []).length > 0 || productImageFiles.length > 0) && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {(productForm.images ?? []).map((url, index) => (
+                    <div key={`${url}-${index}`} className="space-y-2 border border-white/15 p-2">
+                      <img src={url} alt={`Барааны зураг ${index + 1}`} className="aspect-square w-full object-cover" />
+                      <p className="text-xs text-gray-400">{index === 0 ? "Үндсэн зураг" : `Зураг ${index + 1}`}</p>
+                      <button type="button" onClick={() => {
+                        const next = (productForm.images ?? []).filter((_, imageIndex) => imageIndex !== index);
+                        setProductForm({ ...productForm, images: next, image: next[0] ?? "" });
+                      }} className="text-xs text-red-300 underline">Устгах</button>
+                    </div>
+                  ))}
+                  {productImageFiles.map((file, index) => (
+                    <div key={`${file.name}-${index}`} className="border border-white/15 p-2 text-xs text-gray-400">
+                      {file.name}
+                      <p className="mt-1">Шинэ зураг upload хийнэ</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label className="block space-y-2">
+                <span>Видео upload хийх (сонголтоор)</span>
+                <input type="file" accept="video/*" multiple onChange={(event) => setProductVideoFiles(Array.from(event.target.files ?? []))} className="w-full border border-white/20 bg-black p-3" />
+                <span className="block text-xs text-gray-500">Нэг видео 50MB-аас бага байна. Одоо сонгосон: {productVideoFiles.length}</span>
+              </label>
+              {(productForm.videos ?? []).length > 0 && (
+                <div className="space-y-2">
+                  {(productForm.videos ?? []).map((url, index) => (
+                    <div key={`${url}-${index}`} className="flex flex-wrap items-center justify-between gap-2 border border-white/15 p-3">
+                      <a href={url} target="_blank" rel="noreferrer" className="break-all text-xs underline">Видео {index + 1} үзэх</a>
+                      <button type="button" onClick={() => setProductForm({
+                        ...productForm,
+                        videos: (productForm.videos ?? []).filter((_, videoIndex) => videoIndex !== index),
+                      })} className="text-xs text-red-300 underline">Устгах</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <label className="space-y-2 text-sm text-gray-300 md:col-span-2">
               <span>Тайлбар</span>
               <textarea value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} rows={3} className="w-full border border-white/20 bg-black p-3" />

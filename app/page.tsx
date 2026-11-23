@@ -119,69 +119,65 @@ return (
   
  <main className="min-h-screen bg-[#0a0a0a] text-white">
       {/* NAVBAR */}
-      <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md backdrop-blur">
-        <div className="mx-auto grid h-auto max-w-7xl grid-cols-[1fr_auto] grid-rows-[auto_auto] items-center gap-x-4 gap-y-3 px-6 py-3 md:flex md:h-20 md:justify-between md:py-0">
+      <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
           <div className="text-xl font-black tracking-[0.3em] md:text-2xl">
             VAULT 13
           </div>
-        </div>
-        <Link href="/culture" className="group relative flex min-h-[58vh] flex-col justify-end overflow-hidden border border-white/10 bg-[#111] p-7 transition hover:border-[#c9ad72]/60 sm:min-h-[68vh] sm:p-10">
-          <div className="absolute inset-0 bg-[url('/products/hero-culture.jpg')] bg-cover bg-center opacity-60 transition duration-700 group-hover:scale-[1.03]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
-          <div className="relative">
-            <p className="mb-4 text-[10px] tracking-[0.3em] text-[#d7bd8d]">02 / MUSIC · MERCH · STREETWEAR</p>
-            <h2 className="text-5xl font-semibold tracking-[-0.06em] sm:text-6xl">CULTURE</h2>
-            <p className="mt-4 max-w-xs text-sm leading-6 text-white/65">Хөгжим, band merch, hoodie, T-shirt болон streetwear.</p>
-            <span className="mt-8 inline-flex border border-[#c9ad72]/70 px-6 py-3 text-[10px] font-semibold tracking-[0.2em] text-[#d7bd8d] transition group-hover:bg-[#b58a3a] group-hover:text-black">ДЭЛГҮҮРТ ОРОХ ↗</span>
-          </div>
-          </Link>
-          <button 
+          <button
             onClick={() => setCartOpen(true)}
-            className="col-start-2 row-start-1 border border-white px-4 py-2 text-xs tracking-widest hover:bg-white hover:text-black"
+            className="border border-white px-4 py-2 text-xs tracking-widest hover:bg-white hover:text-black"
           >
             CART ({cart})
           </button>
-        </nav>
-      
-
-      {/* HERO */}
-      <section
-        id="home"
-        className="relative flex min-h-screen items-center overflow-hidden"
-      >
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-60"
-          style={{
-  backgroundImage:
-    "url('/products/hero-watch.jpg')"
-}}
-/>
-
-<div className="absolute inset-0 bg-black/60" />
-        <div className="relative mx-auto w-full max-w-7xl px-6 pt-20">
-          <p className="mb-5 text-sm tracking-[0.5em] text-gray-300">
-            ЧАНАРТАЙ БҮТЭЭГДЭХҮҮН
-          </p>
-
-          <h1 className="max-w-4xl text-6xl font-black leading-none tracking-tight md:text-8xl">
- ТАНЫ
-<br />
-ХЭВ МАЯГТ
-<br />
-ЗОРИУЛАВ.
-</h1>
-          <p className="mt-8 max-w-xl text-gray-300">
-            Цаг, хувцас, гутал болон аксессуарууд.
-Өдөр тутмын орчин үеийн хэв маягт тохируулан сонгосон бүтээгдэхүүнүүд.
-          </p>
-
-          <a
-            href="#shop"
-            className="mt-10 inline-block bg-white px-8 py-4 text-sm font-bold tracking-widest text-black transition hover:bg-gray-300"
-          >
-           ОДОО ҮЗЭХ
-          </a>
         </div>
+      </nav>
+
+      {/* STORE SELECTOR */}
+      <section className="mx-auto grid min-h-screen max-w-7xl grid-cols-2 gap-3 px-3 pb-12 pt-28 sm:gap-6 sm:px-6">
+        <Link
+          href="/watches"
+          className="group relative flex min-h-[55vh] flex-col justify-end overflow-hidden border border-white/10 bg-[#111] p-3 transition hover:border-[#c9ad72]/70 sm:min-h-[70vh] sm:p-8"
+        >
+          <div className="absolute inset-0 bg-[url('/products/hero-watch.jpg')] bg-cover bg-center opacity-60 transition duration-700 group-hover:scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
+          <div className="relative">
+            <p className="mb-2 text-[8px] tracking-[0.15em] text-[#d7bd8d] sm:text-xs sm:tracking-[0.3em]">
+              01 / TIMEPIECES
+            </p>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
+              WATCHES
+            </h2>
+            <p className="mt-2 text-[10px] leading-4 text-white/65 sm:mt-4 sm:max-w-xs sm:text-sm sm:leading-6">
+              Цаг болон аксессуарын сонголт.
+            </p>
+            <span className="mt-4 inline-flex border border-[#c9ad72]/70 px-2 py-2 text-[8px] font-semibold tracking-wider text-[#d7bd8d] transition group-hover:bg-[#b58a3a] group-hover:text-black sm:mt-8 sm:px-6 sm:py-3 sm:text-[10px] sm:tracking-[0.2em]">
+              ДЭЛГҮҮРТ ОРОХ ↗
+            </span>
+          </div>
+        </Link>
+
+        <Link
+          href="/culture"
+          className="group relative flex min-h-[55vh] flex-col justify-end overflow-hidden border border-white/10 bg-[#111] p-3 transition hover:border-[#c9ad72]/70 sm:min-h-[70vh] sm:p-8"
+        >
+          <div className="absolute inset-0 bg-[url('/products/hero-culture.jpg')] bg-cover bg-center opacity-60 transition duration-700 group-hover:scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
+          <div className="relative">
+            <p className="mb-2 text-[8px] tracking-[0.15em] text-[#d7bd8d] sm:text-xs sm:tracking-[0.3em]">
+              02 / MUSIC · MERCH
+            </p>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
+              CULTURE
+            </h2>
+            <p className="mt-2 text-[10px] leading-4 text-white/65 sm:mt-4 sm:max-w-xs sm:text-sm sm:leading-6">
+              Хөгжим, band merch, hoodie, streetwear.
+            </p>
+            <span className="mt-4 inline-flex border border-[#c9ad72]/70 px-2 py-2 text-[8px] font-semibold tracking-wider text-[#d7bd8d] transition group-hover:bg-[#b58a3a] group-hover:text-black sm:mt-8 sm:px-6 sm:py-3 sm:text-[10px] sm:tracking-[0.2em]">
+              ДЭЛГҮҮРТ ОРОХ ↗
+            </span>
+          </div>
+        </Link>
       </section>
 
       {/* CATEGORIES */}
