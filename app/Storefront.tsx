@@ -6,7 +6,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
 );
+type ProductVariant = {
+  color: string;
+  price?: number;
+  images: string[];
+  availability: "IN_STOCK" | "PREORDER";
+  sizes: { size: string; stock: number }[];
+};
+
 type Product = {
+  id?: number;
   name: string;
   category: string;
   price: string;
@@ -17,6 +26,9 @@ type Product = {
   availability?: string;
   store?: string;
   description?: string;
+  variants?: ProductVariant[];
+  variantColor?: string;
+  variantSize?: string;
 };
 
 const preorderDescription =
@@ -164,11 +176,61 @@ useEffect(
  const [paymentMethod, setPaymentMethod] = useState("");
 const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 const [activeProductImage, setActiveProductImage] = useState("");
+const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+const [selectedSize, setSelectedSize] = useState("");
+
+const selectedVariant = selectedProduct?.variants?.[selectedVariantIndex] ?? null;
+const isVariantProduct = Boolean(
+  selectedProduct &&
+  ["CLOTHING", "FOOTWEAR"].includes(selectedProduct.category) &&
+  selectedProduct.variants?.length
+);
+const selectedVariantPreorder = selectedVariant?.availability === "PREORDER";
+const selectedSizeStock =
+  selectedVariant?.sizes.find((item) => item.size === selectedSize)?.stock ?? 0;
+
+const addSelectedProductToCart = () => {
+  if (!selectedProduct) return false;
+
+  let cartItem: Product = selectedProduct;
+
+  if (isVariantProduct) {
+    if (!selectedVariant || !selectedSize) {
+      alert("Өнгө болон размер сонгоно уу.");
+      return false;
+    }
+
+    if (!selectedVariantPreorder && selectedSizeStock <= 0) {
+      alert("Сонгосон размерын үлдэгдэл дууссан байна.");
+      return false;
+    }
+
+    cartItem = {
+      ...selectedProduct,
+      price: String(selectedVariant.price ?? selectedProduct.price),
+      image: selectedVariant.images?.[0] || selectedProduct.image,
+      availability: selectedVariant.availability,
+      variantColor: selectedVariant.color,
+      variantSize: selectedSize,
+    };
+  }
+
+  setCartItems((prev) => [...prev, cartItem]);
+  setCart((prev) => prev + 1);
+  showCartAddedNotice();
+  setSelectedProduct(null);
+  return true;
+};
+
 useEffect(() => {
   if (!selectedProduct) return;
   const previousOverflow = document.body.style.overflow;
   document.body.style.overflow = "hidden";
-  setActiveProductImage(selectedProduct.image);
+  setSelectedVariantIndex(0);
+  setSelectedSize("");
+  setActiveProductImage(
+    selectedProduct.variants?.[0]?.images?.[0] || selectedProduct.image
+  );
   return () => {
     document.body.style.overflow = previousOverflow;
   };
@@ -181,6 +243,8 @@ const [customerPhone, setCustomerPhone] = useState("");
 const [customerAddress, setCustomerAddress] = useState("");
 const [qpayUrls, setQpayUrls] = useState<QPayUrl[]>([]);
 const [qpayInvoiceId, setQpayInvoiceId] = useState("");
+const [qpayOrderId, setQpayOrderId] = useState<number | null>(null);
+const [qpayCheckoutToken, setQpayCheckoutToken] = useState("");
 const [isCreatingQpayInvoice, setIsCreatingQpayInvoice] = useState(false);
 const qpayInvoiceRequestInFlight = useRef(false);
 return (
@@ -507,13 +571,15 @@ onClick={(e) => {
 
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-b border-[#b99a63]/25 pb-6">
                 <p className="text-2xl font-medium tracking-tight text-[#d8b76e] sm:text-3xl">
-                  {formatPrice(selectedProduct.price)}
+                  {formatPrice(isVariantProduct && selectedVariant ? String(selectedVariant.price ?? selectedProduct.price) : selectedProduct.price)}
                 </p>
-                {isPreorderProduct(selectedProduct) ? (
+                {(isVariantProduct ? selectedVariantPreorder : isPreorderProduct(selectedProduct)) ? (
                   <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-[#f26a35]/15 bg-[#3a1e12] px-3 py-2 text-[9px] font-semibold tracking-[0.06em] text-[#ff713d] sm:px-4 sm:text-[10px]">
                     <span aria-hidden="true">◷</span><span>УРЬДЧИЛСАН ЗАХИАЛГА</span>
                   </span>
-                ) : selectedProduct.stock > 0 ? (
+                ) : (isVariantProduct
+                    ? selectedVariant?.sizes.some((item) => item.stock > 0)
+                    : selectedProduct.stock > 0) ? (
                   <span className="inline-flex items-center gap-2 rounded-full border border-[#18b957]/15 bg-[#092b1b] px-4 py-2 text-[10px] font-semibold tracking-[0.08em] text-[#20c866]">
                     <span className="h-2 w-2 rounded-full bg-[#18c65b]" />БЭЛЭН
                   </span>
@@ -521,6 +587,102 @@ onClick={(e) => {
                   <span className="border border-red-400/30 px-3 py-2 text-[10px] tracking-[0.18em] text-red-300">SOLD OUT</span>
                 )}
               </div>
+
+              {isVariantProduct && selectedProduct.variants && (
+                <div className="mt-6 space-y-5 border-b border-[#b99a63]/20 pb-6">
+                  <div>
+                    <p className="mb-3 text-xs font-semibold tracking-wider text-[#d7bd8d]">
+                      ӨНГӨ СОНГОХ
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProduct.variants.map((variant, index) => (
+                        <button
+                          key={`${variant.color}-${index}`}
+                          type="button"
+                          onClick={() => {
+                            setSelectedVariantIndex(index);
+                            setSelectedSize("");
+                            setActiveProductImage(variant.images?.[0] || selectedProduct.image);
+                          }}
+                          aria-pressed={selectedVariantIndex === index}
+                          className={`border px-4 py-3 text-sm transition ${
+                            selectedVariantIndex === index
+                              ? "border-[#d7bd8d] bg-[#b99a63]/15 text-[#f0d9aa]"
+                              : "border-white/20 text-white/70 hover:border-white/50"
+                          }`}
+                        >
+                          {variant.color}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedVariant && (
+                    <>
+                      {selectedVariant.images.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto">
+                          {selectedVariant.images.map((image, index) => (
+                            <button
+                              key={`${image}-${index}`}
+                              type="button"
+                              onClick={() => setActiveProductImage(image)}
+                              aria-label={`${selectedVariant.color} зураг ${index + 1}`}
+                              className={`h-16 w-16 shrink-0 overflow-hidden border bg-white ${
+                                activeProductImage === image
+                                  ? "border-[#d7bd8d]"
+                                  : "border-white/15 opacity-70"
+                              }`}
+                            >
+                              <img src={image} alt="" className="h-full w-full object-contain" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="mb-3 text-xs font-semibold tracking-wider text-[#d7bd8d]">
+                          РАЗМЕР СОНГОХ
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedVariant.sizes.map((item, index) => {
+                            const unavailable =
+                              !selectedVariantPreorder && item.stock <= 0;
+                            return (
+                              <button
+                                key={`${item.size}-${index}`}
+                                type="button"
+                                disabled={unavailable}
+                                onClick={() => setSelectedSize(item.size)}
+                                aria-pressed={selectedSize === item.size}
+                                className={`min-w-12 border px-4 py-3 text-sm transition ${
+                                  selectedSize === item.size
+                                    ? "border-[#d7bd8d] bg-[#b99a63]/20 text-[#f0d9aa]"
+                                    : "border-white/20 text-white/75"
+                                } disabled:cursor-not-allowed disabled:opacity-25 disabled:line-through`}
+                              >
+                                {item.size}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {selectedVariantPreorder ? (
+                          <p className="mt-3 text-xs text-amber-200">
+                            Урьдчилсан захиалга — размер сонгох боломжтой.
+                          </p>
+                        ) : selectedSize ? (
+                          <p className="mt-3 text-xs text-white/50">
+                            Үлдэгдэл: {selectedSizeStock} ширхэг
+                          </p>
+                        ) : (
+                          <p className="mt-3 text-xs text-white/40">
+                            Үргэлжлүүлэхийн тулд размер сонгоно уу.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="mt-6 rounded-xl border border-[#b99a63]/25 bg-[#c9a45c]/[0.045] p-4 sm:mt-7 sm:p-5">
                 <p className="text-[10px] font-semibold tracking-[0.2em] text-[#d7bd8d]">БҮТЭЭГДЭХҮҮНИЙ ТАЙЛБАР</p>
@@ -555,24 +717,25 @@ onClick={(e) => {
               <div className="mt-6 grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2 md:mt-auto md:pt-8">
                 <button
                   type="button"
-                  disabled={!isPreorderProduct(selectedProduct) && selectedProduct.stock <= 0}
-                  onClick={() => {
-                    setCart((prev) => prev + 1);
-                    setCartItems((prev) => [...prev, selectedProduct]);
-                    showCartAddedNotice();
-                    setSelectedProduct(null);
-                  }}
+                  disabled={
+                    isVariantProduct
+                      ? !selectedSize || (!selectedVariantPreorder && selectedSizeStock <= 0)
+                      : !isPreorderProduct(selectedProduct) && selectedProduct.stock <= 0
+                  }
+                  onClick={addSelectedProductToCart}
                   className="w-full border border-[#b99a63]/70 px-5 py-4 text-[11px] font-semibold tracking-[0.16em] text-[#d7bd8d] transition hover:bg-[#b99a63]/10 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   САГСАНД НЭМЭХ
                 </button>
                 <button
                   type="button"
-                  disabled={!isPreorderProduct(selectedProduct) && selectedProduct.stock <= 0}
+                  disabled={
+                    isVariantProduct
+                      ? !selectedSize || (!selectedVariantPreorder && selectedSizeStock <= 0)
+                      : !isPreorderProduct(selectedProduct) && selectedProduct.stock <= 0
+                  }
                   onClick={() => {
-                    setCart((prev) => prev + 1);
-                    setCartItems((prev) => [...prev, selectedProduct]);
-                    setSelectedProduct(null);
+                    if (!addSelectedProductToCart()) return;
                     setCheckoutStep(1);
                     setCheckoutOpen(true);
                   }}
@@ -630,6 +793,16 @@ onClick={(e) => {
 
             <div>
               <p className="font-semibold">{item.name}</p>
+              {item.variantColor && (
+                <p className="text-sm text-gray-400 mt-1">
+                  Өнгө: {item.variantColor}
+                </p>
+              )}
+              {item.variantSize && (
+                <p className="text-sm text-gray-400">
+                  Размер: {item.variantSize}
+                </p>
+              )}
               <p className="text-gray-400 mt-1">{formatPrice(item.price)}</p>
               {isPreorderProduct(item) && (
                 <p className="mt-2 text-sm text-gray-400">
@@ -774,12 +947,51 @@ onClick={(e) => {
     const requestStartedAt = performance.now();
 
     try {
+      const orderItems = cartItems.map((item) => {
+        const matchedProduct = products.find(
+          (product) => product.id && product.name === item.name
+        );
+        const productId = item.id ?? matchedProduct?.id;
+
+        if (!productId) {
+          throw new Error(`${item.name}: барааны ID олдсонгүй. Сагсаа шинэчилнэ үү.`);
+        }
+
+        return {
+          id: productId,
+          quantity: 1,
+          ...(item.variantColor ? { variantColor: item.variantColor } : {}),
+          ...(item.variantSize ? { variantSize: item.variantSize } : {}),
+        };
+      });
+
+      const orderResponse = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName,
+          customerPhone,
+          customerAddress,
+          items: orderItems,
+        }),
+      });
+
+      const orderData = await orderResponse.json();
+
+      if (!orderResponse.ok) {
+        alert(orderData.error || "Захиалга үүсгэсэнгүй.");
+        return;
+      }
+
+      setQpayOrderId(Number(orderData.orderId));
+      setQpayCheckoutToken(orderData.checkoutToken);
+
       const response = await fetch("/api/qpay/invoice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: total,
-          orderId: `ORDER-${Date.now()}`,
+          orderId: orderData.orderId,
+          checkoutToken: orderData.checkoutToken,
         }),
       });
 
@@ -838,10 +1050,19 @@ onClick={(e) => {
       const total = cartItems.reduce((sum, item) => {
         return sum + Number(String(item.price).replace(/[^\d]/g, ""));
       }, 0);
+      if (!qpayOrderId || !qpayCheckoutToken) {
+        alert("Захиалгын баталгаажуулах мэдээлэл олдсонгүй. Дахин нэхэмжлэл үүсгэнэ үү.");
+        return;
+      }
+
       const paymentCheck = await fetch("/api/qpay/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId: qpayInvoiceId }),
+        body: JSON.stringify({
+          invoiceId: qpayInvoiceId,
+          orderId: qpayOrderId,
+          checkoutToken: qpayCheckoutToken,
+        }),
       });
       const paymentData = await paymentCheck.json();
 
@@ -850,23 +1071,7 @@ onClick={(e) => {
         !paymentData.paid ||
         Number(paymentData.paidAmount) < total
       ) {
-        alert("Төлбөр бүрэн баталгаажаагүй байна. QPay төлбөрөө шалгана уу.");
-        return;
-      }
-
-      const { error } = await supabase.from("orders").insert([
-        {
-          customer_name: customerName,
-          customer_phone: customerPhone,
-          customer_address: customerAddress,
-          payment_method: paymentMethod,
-          items: cartItems,
-          total,
-        },
-      ]);
-
-      if (error) {
-        alert("Захиалга хадгалахад алдаа гарлаа: " + error.message);
+        alert(paymentData.error || "Төлбөр бүрэн баталгаажаагүй байна. QPay төлбөрөө шалгана уу.");
         return;
       }
 
@@ -876,24 +1081,23 @@ onClick={(e) => {
           "Утас: " + customerPhone + "\n" +
           "Хаяг: " + customerAddress + "\n" +
           "Төлбөрийн хэлбэр: " + paymentMethod + "\n" +
-          "Нийт дүн: " + total.toLocaleString() + "₮"
+          "Нийт дүн: " + total.toLocaleString() + "₮" +
+          (paymentData.inventoryIssue ? "\nАнхааруулга: барааны үлдэгдлийг шалгах шаардлагатай." : "")
       );
 
       setCheckoutOpen(false);
-      setProducts((prevProducts) =>
-        prevProducts.map((product) => {
-          const orderedCount = cartItems.filter(
-            (item) => item.name === product.name
-          ).length;
+      const { data: refreshedProducts } = await supabase
+        .from("products")
+        .select("*")
+        .order("id", { ascending: false });
 
-          return {
-            ...product,
-            stock: Math.max(0, product.stock - orderedCount),
-          };
-        })
-      );
+      if (refreshedProducts) setProducts(refreshedProducts as Product[]);
       setCart(0);
       setCartItems([]);
+      setQpayUrls([]);
+      setQpayInvoiceId("");
+      setQpayOrderId(null);
+      setQpayCheckoutToken("");
     } catch (error) {
       console.error("Төлбөр шалгахад алдаа:", error);
       alert("Төлбөр шалгахад алдаа гарлаа. Дахин оролдоно уу.");

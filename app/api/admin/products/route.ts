@@ -16,12 +16,45 @@ type ProductInput = {
   stock?: unknown;
   availability?: unknown;
   description?: unknown;
+  variants?: unknown;
   updates?: Record<string, unknown>;
 };
 
 function validUrlArray(value: unknown) {
   return Array.isArray(value) &&
     value.every((item) => typeof item === "string");
+}
+
+function validVariants(value: unknown) {
+  if (!Array.isArray(value)) return false;
+
+  return value.every((variant) => {
+    if (!variant || typeof variant !== "object") return false;
+    const item = variant as Record<string, unknown>;
+
+    if (
+      typeof item.color !== "string" ||
+      !item.color.trim() ||
+      !Array.isArray(item.images) ||
+      !item.images.every((url) => typeof url === "string") ||
+      !Array.isArray(item.sizes) ||
+      !["IN_STOCK", "PREORDER"].includes(String(item.availability))
+    ) return false;
+
+    if (
+      item.price !== undefined &&
+      (!Number.isSafeInteger(Number(item.price)) || Number(item.price) <= 0)
+    ) return false;
+
+    return item.sizes.every((size) => {
+      if (!size || typeof size !== "object") return false;
+      const entry = size as Record<string, unknown>;
+      return typeof entry.size === "string" &&
+        !!entry.size.trim() &&
+        Number.isSafeInteger(Number(entry.stock)) &&
+        Number(entry.stock) >= 0;
+    });
+  });
 }
 
 function validateProduct(input: ProductInput) {
@@ -45,7 +78,11 @@ function validateProduct(input: ProductInput) {
     (input.store !== undefined &&
       input.store !== "watches" && input.store !== "culture") ||
     (input.images !== undefined && !validUrlArray(input.images)) ||
-    (input.videos !== undefined && !validUrlArray(input.videos))
+    (input.videos !== undefined && !validUrlArray(input.videos)) ||
+    (input.variants !== undefined && (
+      !["CLOTHING", "FOOTWEAR"].includes(category) ||
+      !validVariants(input.variants)
+    ))
   ) {
     return null;
   }
@@ -60,6 +97,7 @@ function validateProduct(input: ProductInput) {
     stock,
     availability: normalizeAvailability(input.availability),
     description,
+    ...(input.variants !== undefined ? { variants: input.variants } : {}),
     ...(input.store === "watches" || input.store === "culture"
       ? { store: input.store }
       : {}),
@@ -222,6 +260,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Тайлбар буруу байна." }, { status: 400 });
     }
     updates.description = source.description.trim();
+  }
+
+  if ("variants" in source) {
+    if (
+      !["CLOTHING", "FOOTWEAR"].includes(String(source.category ?? "")) ||
+      !validVariants(source.variants)
+    ) {
+      return NextResponse.json(
+        { error: "Өнгө, размерын мэдээлэл буруу байна." },
+        { status: 400 }
+      );
+    }
+    updates.variants = source.variants;
   }
 
   if ("availability" in source) {

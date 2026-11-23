@@ -23,6 +23,14 @@ type MetaAlert = {
   dateStop?: string;
 };
 
+type ProductVariant = {
+  color: string;
+  price?: number;
+  images: string[];
+  availability: "IN_STOCK" | "PREORDER";
+  sizes: { size: string; stock: number }[];
+};
+
 type AdminProduct = {
   id: number;
   name: string;
@@ -35,6 +43,7 @@ type AdminProduct = {
   stock: number;
   availability?: string | null;
   description?: string | null;
+  variants?: ProductVariant[];
 };
 
 type AdminOrder = {
@@ -83,6 +92,7 @@ export default function AdminPage() {
 
   const [productImageFiles, setProductImageFiles] = useState<File[]>([]);
   const [productVideoFiles, setProductVideoFiles] = useState<File[]>([]);
+  const [variantImageFiles, setVariantImageFiles] = useState<Record<number, File[]>>({});
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [adminMessage, setAdminMessage] = useState("");
@@ -97,6 +107,7 @@ export default function AdminPage() {
     image: "",
     images: [] as string[],
     videos: [] as string[],
+    variants: [] as ProductVariant[],
   });
 const [products, setProducts] = useState<AdminProduct[]>([]);
 const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -241,6 +252,7 @@ const resetProductForm = () => {
  setEditingProductId(null);
  setProductImageFiles([]);
  setProductVideoFiles([]);
+ setVariantImageFiles({});
  setProductForm({
    name: "",
    store: "watches",
@@ -252,6 +264,7 @@ const resetProductForm = () => {
    image: "",
    images: [],
    videos: [],
+   variants: [],
  });
 };
 
@@ -259,6 +272,7 @@ const editProduct = (product: AdminProduct) => {
  setEditingProductId(Number(product.id));
  setProductImageFiles([]);
  setProductVideoFiles([]);
+ setVariantImageFiles({});
  const existingImages = Array.isArray(product.images) && product.images.length
    ? product.images
    : product.image ? [product.image] : [];
@@ -273,6 +287,7 @@ const editProduct = (product: AdminProduct) => {
    image: String(product.image ?? existingImages[0] ?? ""),
    images: existingImages,
    videos: Array.isArray(product.videos) ? product.videos : [],
+   variants: Array.isArray(product.variants) ? product.variants : [],
  });
 };
 
@@ -316,6 +331,20 @@ const saveProduct = async () => {
    const videos = [...(Array.isArray(productForm.videos) ? productForm.videos : []), ...uploadedVideos];
    const image = images[0] || productForm.image.trim();
 
+   const variants = await Promise.all(
+     (productForm.variants ?? []).map(async (variant, index) => {
+       const files = variantImageFiles[index] ?? [];
+       if (variant.images.length + files.length > 12) {
+         throw new Error(`${variant.color || `Өнгө ${index + 1}`} өнгөнд хамгийн ихдээ 12 зураг оруулна уу.`);
+       }
+       const uploadedVariantImages = await uploadMediaFiles(files);
+       return {
+         ...variant,
+         images: [...variant.images, ...uploadedVariantImages],
+       };
+     })
+   );
+
    if (!image) {
      throw new Error("Дор хаяж нэг зураг эсвэл зургийн URL оруулна уу.");
    }
@@ -335,6 +364,9 @@ const saveProduct = async () => {
        image,
        images,
        videos,
+       variants: ["CLOTHING", "FOOTWEAR"].includes(productForm.category)
+         ? variants
+         : [],
      }),
    });
    const result = await response.json();
@@ -814,6 +846,224 @@ if (!loggedIn) {
                 </div>
               )}
             </div>
+            {["CLOTHING", "FOOTWEAR"].includes(productForm.category) && (
+              <div className="space-y-4 border border-white/20 p-4 md:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-bold">ӨНГӨ, РАЗМЕР, ҮЛДЭГДЭЛ</h3>
+                  <button
+                    type="button"
+                    onClick={() => setProductForm({
+                      ...productForm,
+                      variants: [
+                        ...productForm.variants,
+                        {
+                          color: "",
+                          price: undefined,
+                          images: [],
+                          availability: productForm.availability as "IN_STOCK" | "PREORDER",
+                          sizes: [{ size: "", stock: 0 }],
+                        },
+                      ],
+                    })}
+                    className="border border-white/40 px-3 py-2 text-sm"
+                  >
+                    + ӨНГӨ НЭМЭХ
+                  </button>
+                </div>
+
+                {(productForm.variants ?? []).map((variant, variantIndex) => (
+                  <div key={variantIndex} className="space-y-3 border border-white/15 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <strong>Өнгө {variantIndex + 1}</strong>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProductForm({
+                            ...productForm,
+                            variants: productForm.variants.filter((_, i) => i !== variantIndex),
+                          });
+                          setVariantImageFiles((current) => {
+                            const next = { ...current };
+                            delete next[variantIndex];
+                            return next;
+                          });
+                        }}
+                        className="text-sm text-red-300 underline"
+                      >
+                        Устгах
+                      </button>
+                    </div>
+
+                    <label className="block space-y-1 text-sm">
+                      <span>Өнгөний нэр</span>
+                      <input
+                        value={variant.color}
+                        onChange={(event) => {
+                          const variants = [...productForm.variants];
+                          variants[variantIndex] = { ...variant, color: event.target.value };
+                          setProductForm({ ...productForm, variants });
+                        }}
+                        placeholder="Жишээ: Vintage Grey, Washed Black, Cream"
+                        className="w-full border border-white/20 bg-black p-3"
+                      />
+                    </label>
+
+                    <label className="block space-y-1 text-sm">
+                      <span>Энэ өнгөний үнэ (₮) — хоосон бол үндсэн үнэ</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={variant.price ?? ""}
+                        onChange={(event) => {
+                          const variants = [...productForm.variants];
+                          variants[variantIndex] = {
+                            ...variant,
+                            price: event.target.value ? Number(event.target.value) : undefined,
+                          };
+                          setProductForm({ ...productForm, variants });
+                        }}
+                        className="w-full border border-white/20 bg-black p-3"
+                      />
+                    </label>
+
+                    <label className="block space-y-1 text-sm">
+                      <span>Барааны боломж</span>
+                      <select
+                        value={variant.availability}
+                        onChange={(event) => {
+                          const variants = [...productForm.variants];
+                          variants[variantIndex] = {
+                            ...variant,
+                            availability: event.target.value as "IN_STOCK" | "PREORDER",
+                          };
+                          setProductForm({ ...productForm, variants });
+                        }}
+                        className="w-full border border-white/20 bg-black p-3"
+                      >
+                        <option value="IN_STOCK">Бэлэн байгаа</option>
+                        <option value="PREORDER">Урьдчилсан захиалга</option>
+                      </select>
+                    </label>
+
+                    <div className="space-y-2">
+                      <span className="text-sm">Энэ өнгөний зураг</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(event) => setVariantImageFiles((current) => ({
+                          ...current,
+                          [variantIndex]: Array.from(event.target.files ?? []),
+                        }))}
+                        className="w-full border border-white/20 bg-black p-3 text-sm"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Сонгосон шинэ зураг: {(variantImageFiles[variantIndex] ?? []).length}
+                      </p>
+                      {variant.images.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2">
+                          {variant.images.map((url, imageIndex) => (
+                            <div key={`${url}-${imageIndex}`} className="space-y-1">
+                              <img src={url} alt={`${variant.color} зураг ${imageIndex + 1}`} className="aspect-square w-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const variants = [...productForm.variants];
+                                  variants[variantIndex] = {
+                                    ...variant,
+                                    images: variant.images.filter((_, i) => i !== imageIndex),
+                                  };
+                                  setProductForm({ ...productForm, variants });
+                                }}
+                                className="text-xs text-red-300 underline"
+                              >
+                                Зураг устгах
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold">Размер ба үлдэгдэл</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const variants = [...productForm.variants];
+                            variants[variantIndex] = {
+                              ...variant,
+                              sizes: [...variant.sizes, { size: "", stock: 0 }],
+                            };
+                            setProductForm({ ...productForm, variants });
+                          }}
+                          className="text-sm underline"
+                        >
+                          + Размер нэмэх
+                        </button>
+                      </div>
+
+                      {variant.sizes.map((sizeItem, sizeIndex) => (
+                        <div key={sizeIndex} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                          <input
+                            value={sizeItem.size}
+                            onChange={(event) => {
+                              const variants = [...productForm.variants];
+                              const sizes = [...variant.sizes];
+                              sizes[sizeIndex] = { ...sizeItem, size: event.target.value };
+                              variants[variantIndex] = { ...variant, sizes };
+                              setProductForm({ ...productForm, variants });
+                            }}
+                            placeholder="Размер: S, M, L, 42..."
+                            className="min-w-0 border border-white/20 bg-black p-2 text-sm"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={sizeItem.stock}
+                            onChange={(event) => {
+                              const variants = [...productForm.variants];
+                              const sizes = [...variant.sizes];
+                              sizes[sizeIndex] = {
+                                ...sizeItem,
+                                stock: Math.max(0, Number(event.target.value)),
+                              };
+                              variants[variantIndex] = { ...variant, sizes };
+                              setProductForm({ ...productForm, variants });
+                            }}
+                            disabled={variant.availability === "PREORDER"}
+                            placeholder="Үлдэгдэл"
+                            className="min-w-0 border border-white/20 bg-black p-2 text-sm disabled:opacity-40"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const variants = [...productForm.variants];
+                              variants[variantIndex] = {
+                                ...variant,
+                                sizes: variant.sizes.filter((_, i) => i !== sizeIndex),
+                              };
+                              setProductForm({ ...productForm, variants });
+                            }}
+                            className="px-2 text-red-300"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {variant.availability === "PREORDER" && (
+                        <p className="text-xs text-amber-200">
+                          Урьдчилсан захиалга: размер сонгох боломжтой, биет үлдэгдэл хасахгүй.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <label className="space-y-2 text-sm text-gray-300 md:col-span-2">
               <span>Тайлбар</span>
               <textarea value={productForm.description} onChange={(event) => setProductForm({ ...productForm, description: event.target.value })} rows={3} className="w-full border border-white/20 bg-black p-3" />
